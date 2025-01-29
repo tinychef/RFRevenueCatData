@@ -475,32 +475,32 @@
                 Plotly.newPlot('growth_chart', [trialTrace, paidTrace, revenueTrace], growthLayout);
 
                 // Revenue Analysis by Store
+                const storeRevenue = {};
+                dataArray.forEach(item => {
+                    const store = item.latest_store || 'Unknown Store';
+                    storeRevenue[store] = (storeRevenue[store] || 0) + parseFloat(item.total_spent || 0);
+                });
+
                 const storeRevenueTrace = {
-                    x: dataArray.map(item => item.latest_store || 'Unknown Store'),
-                    y: dataArray.map(item => item.total_spent),
-                    type: 'bar',
+                    labels: Object.keys(storeRevenue),
+                    values: Object.values(storeRevenue),
+                    type: 'pie',
                     name: 'Revenue by Store',
-                    marker: { color: brandColor },
-                    hovertemplate: '$%{y:,.0f}<extra></extra>'
+                    marker: {
+                        colors: [brandColor, brandColorDark, brandColorLight]
+                    },
+                    textinfo: 'label+percent',
+                    hovertemplate: '%{label}<br>$%{value:,.0f}<br>%{percent}<extra></extra>'
                 };
                 Plotly.newPlot('revenue_chart', [storeRevenueTrace], {
                     title: {
                         text: 'Revenue by App Stores',
                         font: { color: brandColor }
                     },
-                    xaxis: { 
-                        title: 'Store',
-                        tickangle: 0,
-                        tickfont: { color: '#666' }
-                    },
-                    yaxis: { 
-                        title: 'Total Revenue (USD)',
-                        tickfont: { color: '#666' },
-                        tickprefix: '$',
-                        tickformat: ',.0f'
-                    },
-                    margin: {
-                        b: 50
+                    showlegend: true,
+                    legend: {
+                        orientation: 'h',
+                        y: -0.1
                     }
                 });
 
@@ -511,23 +511,25 @@
                 });
 
                 const platformTrace = {
-                    x: Object.keys(platformCounts),
-                    y: Object.values(platformCounts),
-                    type: 'bar',
+                    labels: Object.keys(platformCounts),
+                    values: Object.values(platformCounts),
+                    type: 'pie',
                     name: 'Platform Distribution',
-                    marker: { color: brandColor }
+                    marker: {
+                        colors: [brandColor, brandColorDark, brandColorLight]
+                    },
+                    textinfo: 'label+percent',
+                    hovertemplate: '%{label}<br>%{value} users<br>%{percent}<extra></extra>'
                 };
                 Plotly.newPlot('platform_chart', [platformTrace], {
                     title: {
                         text: 'Platform Distribution',
                         font: { color: brandColor }
                     },
-                    yaxis: { 
-                        title: 'Number of Users',
-                        tickfont: { color: '#666' }
-                    },
-                    xaxis: {
-                        tickfont: { color: '#666' }
+                    showlegend: true,
+                    legend: {
+                        orientation: 'h',
+                        y: -0.1
                     }
                 });
 
