@@ -70,7 +70,7 @@
     <div class="input-group">
         <input type="file" id="fileInput" accept=".json">
         <div class="or-divider">OR</div>
-        <button id="loadDriveData" class="drive-button">Load Sample Data</button>
+        <button id="loadDriveData" class="drive-button">Update Charts</button>
     </div>
     <div class="chart-container"><div id="subscription_chart"></div></div>
     <div class="chart-container"><div id="growth_chart"></div></div>
@@ -122,23 +122,20 @@
             loadingDiv.style.display = 'block';
             errorDiv.style.display = 'none';
 
-            // Using raw GitHub content URL
+            // Using the original GitHub raw content URL
             const dataUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/csvjson.json';
 
-            fetch(dataUrl, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'Cache-Control': 'no-cache'
-                }
-            })
+            fetch(dataUrl)
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Network response was not ok: ' + response.statusText);
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
+                if (!data || (Array.isArray(data) && data.length === 0)) {
+                    throw new Error('No data received');
+                }
                 if (validateData(data)) {
                     generateDashboard(data);
                 } else {
@@ -230,7 +227,7 @@
                     line: {
                         color: brandColorLight,
                         width: 3,
-                        shape: 'hv'
+                        shape: 'linear'
                     },
                     fill: 'tozeroy',
                     fillcolor: 'rgba(245, 127, 43, 0.1)'
@@ -245,7 +242,7 @@
                     line: {
                         color: brandColor,
                         width: 3,
-                        shape: 'hv'
+                        shape: 'linear'
                     },
                     fill: 'tozeroy',
                     fillcolor: 'rgba(245, 127, 43, 0.3)'
@@ -260,7 +257,7 @@
                     line: {
                         color: brandColorDark,
                         width: 3,
-                        shape: 'hv'
+                        shape: 'linear'
                     },
                     yaxis: 'y2',
                     hovertemplate: '$%{y:,.0f}<extra></extra>'
