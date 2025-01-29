@@ -108,17 +108,40 @@
             font-size: 11px;
             margin-top: 4px;
         }
+        .error-message {
+            color: #e74c3c;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .upload-container {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px dashed #f57f2b;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .upload-hint {
+            color: #666;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        #errorContainer {
+            margin-bottom: 30px;
+        }
     </style>
 </head>
 <body>
     <h2>Interactive Sales Dashboard</h2>
-    <div class="input-group">
-        <input type="file" id="fileInput" accept=".json">
-        <div class="or-divider">OR</div>
-        <button id="loadDriveData" class="drive-button">Update Charts</button>
+    
+    <!-- Hidden file input, only shown when needed -->
+    <div id="errorContainer" style="display: none;">
+        <div class="error-message">Unable to load dashboard data.</div>
+        <div class="upload-container">
+            <input type="file" id="fileInput" accept=".json">
+            <div class="upload-hint">Please upload a JSON file with the required data format</div>
+        </div>
     </div>
     
-    <!-- Add new metrics section -->
     <div class="metrics-container" id="kpiMetrics"></div>
     
     <div class="chart-container"><div id="subscription_chart"></div></div>
@@ -130,14 +153,54 @@
     <div id="loadingMessage" class="loading">Loading dashboard...</div>
 
     <script>
+        // Function to load data when page loads
+        function loadDashboardData() {
+            const loadingDiv = document.getElementById('loadingMessage');
+            const errorContainer = document.getElementById('errorContainer');
+            
+            loadingDiv.style.display = 'block';
+            errorContainer.style.display = 'none';
+
+            // Using the GitHub raw content URL
+            const dataUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/csvjson.json';
+
+            fetch(dataUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (!data || (Array.isArray(data) && data.length === 0)) {
+                        throw new Error('No data received');
+                    }
+                    if (validateData(data)) {
+                        generateDashboard(data);
+                    } else {
+                        throw new Error('Invalid data format');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    errorContainer.style.display = 'block';
+                })
+                .finally(() => {
+                    loadingDiv.style.display = 'none';
+                });
+        }
+
+        // Load data when page loads
+        document.addEventListener('DOMContentLoaded', loadDashboardData);
+
+        // Keep the file input handler for fallback
         document.getElementById('fileInput').addEventListener('change', function(event) {
             const file = event.target.files[0];
-            const errorDiv = document.getElementById('errorMessage');
+            const errorContainer = document.getElementById('errorContainer');
             const loadingDiv = document.getElementById('loadingMessage');
             
             if (file) {
                 loadingDiv.style.display = 'block';
-                errorDiv.style.display = 'none';
                 
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -145,60 +208,22 @@
                         const data = JSON.parse(e.target.result);
                         if (validateData(data)) {
                             generateDashboard(data);
+                            errorContainer.style.display = 'none';
                         } else {
                             throw new Error('Invalid data format');
                         }
                     } catch (error) {
-                        errorDiv.textContent = 'Error: ' + error.message;
-                        errorDiv.style.display = 'block';
+                        console.error('Error:', error);
                     } finally {
                         loadingDiv.style.display = 'none';
                     }
                 };
                 reader.onerror = function() {
-                    errorDiv.textContent = 'Error reading file';
-                    errorDiv.style.display = 'block';
+                    console.error('Error reading file');
                     loadingDiv.style.display = 'none';
                 };
                 reader.readAsText(file);
             }
-        });
-
-        document.getElementById('loadDriveData').addEventListener('click', function() {
-            const loadingDiv = document.getElementById('loadingMessage');
-            const errorDiv = document.getElementById('errorMessage');
-            
-            loadingDiv.style.display = 'block';
-            errorDiv.style.display = 'none';
-
-            // Using the original GitHub raw content URL
-            const dataUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/csvjson.json';
-
-            fetch(dataUrl)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (!data || (Array.isArray(data) && data.length === 0)) {
-                    throw new Error('No data received');
-                }
-                if (validateData(data)) {
-                    generateDashboard(data);
-                } else {
-                    throw new Error('Invalid data format');
-                }
-            })
-            .catch(error => {
-                errorDiv.textContent = 'Error loading data: ' + error.message;
-                errorDiv.style.display = 'block';
-                console.error('Error:', error);
-            })
-            .finally(() => {
-                loadingDiv.style.display = 'none';
-            });
         });
 
         function validateData(data) {
