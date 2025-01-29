@@ -63,6 +63,51 @@
         .drive-button:hover {
             background-color: #d16418;
         }
+        .metrics-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .metric-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #f57f2b;
+            box-shadow: 0 2px 4px rgba(245, 127, 43, 0.1);
+            min-width: 0;
+        }
+        .metric-title {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .metric-value {
+            color: #f57f2b;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .metric-growth {
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .growth-positive {
+            color: #2ecc71;
+        }
+        .growth-negative {
+            color: #e74c3c;
+        }
+        .metric-subtitle {
+            color: #666;
+            font-size: 11px;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -72,6 +117,10 @@
         <div class="or-divider">OR</div>
         <button id="loadDriveData" class="drive-button">Update Charts</button>
     </div>
+    
+    <!-- Add new metrics section -->
+    <div class="metrics-container" id="kpiMetrics"></div>
+    
     <div class="chart-container"><div id="subscription_chart"></div></div>
     <div class="chart-container"><div id="growth_chart"></div></div>
     <div class="chart-container"><div id="revenue_chart"></div></div>
@@ -160,8 +209,130 @@
             return true;
         }
 
+        function calculateMetrics(data) {
+            const dataArray = Array.isArray(data) ? data : [data];
+            const now = new Date();
+            const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+            const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
+
+            // Filter data for different time periods
+            const currentMonthData = dataArray.filter(item => new Date(parseInt(item.first_seen_at)) >= oneMonthAgo);
+            const lastMonthData = dataArray.filter(item => {
+                const date = new Date(parseInt(item.first_seen_at));
+                return date >= twoMonthsAgo && date < oneMonthAgo;
+            });
+
+            // Calculate total trials and conversions
+            const totalTrials = dataArray.length; // All records represent trials
+
+            const totalPaidConversions = dataArray.filter(item => 
+                parseFloat(item.total_spent) > 0
+            ).length;
+
+            // Log for debugging
+            console.log('Total trials (all records):', totalTrials);
+            console.log('Total paid conversions (total_spent > 0):', totalPaidConversions);
+
+            const conversionRate = totalTrials > 0 ? (totalPaidConversions / totalTrials) * 100 : 0;
+
+            // Calculate other metrics
+            const calculateRevenue = (items) => items.reduce((sum, item) => sum + (parseFloat(item.total_spent) || 0), 0);
+            
+            const calculateMRR = (items) => {
+                return items.reduce((sum, item) => {
+                    if (item.status === 'active' && parseFloat(item.total_spent) > 0) {
+                        const monthlyRate = parseFloat(item.total_spent) / 
+                            (parseInt(item.subscription_duration_months) || 1);
+                        return sum + monthlyRate;
+                    }
+                    return sum;
+                }, 0);
+            };
+
+            // Current period metrics
+            const currentRevenue = calculateRevenue(currentMonthData);
+            const currentMRR = calculateMRR(dataArray);
+
+            // Previous period metrics
+            const lastRevenue = calculateRevenue(lastMonthData);
+            const lastMRR = calculateMRR(dataArray.filter(item => 
+                new Date(parseInt(item.first_seen_at)) < oneMonthAgo
+            ));
+
+            // Calculate growth
+            const calculateGrowth = (current, previous) => {
+                return previous !== 0 ? ((current - previous) / previous) * 100 : 100;
+            };
+
+            // Calculate total trial users (all records)
+            const totalTrialUsers = dataArray.length;
+
+            return {
+                revenue: {
+                    value: currentRevenue,
+                    growth: calculateGrowth(currentRevenue, lastRevenue)
+                },
+                mrr: {
+                    value: currentMRR,
+                    growth: calculateGrowth(currentMRR, lastMRR)
+                },
+                totalPaidConversions: {
+                    value: totalPaidConversions,
+                    growth: 0
+                },
+                conversion: {
+                    value: conversionRate,
+                    growth: 0
+                },
+                totalTrials: {
+                    value: totalTrials,
+                    growth: calculateGrowth(currentMonthData.length, lastMonthData.length)
+                }
+            };
+        }
+
+        function updateKPIMetrics(metrics) {
+            const metricsContainer = document.getElementById('kpiMetrics');
+            metricsContainer.innerHTML = `
+                <div class="metric-card">
+                    <div class="metric-title">Total Revenue</div>
+                    <div class="metric-value">$${metrics.revenue.value.toLocaleString('en-US', {maximumFractionDigits: 0})}</div>
+                    <div class="metric-growth ${metrics.revenue.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.revenue.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.revenue.growth).toFixed(1)}% WoW
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Monthly Recurring Revenue</div>
+                    <div class="metric-value">$${metrics.mrr.value.toLocaleString('en-US', {maximumFractionDigits: 0})}</div>
+                    <div class="metric-growth ${metrics.mrr.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.mrr.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.mrr.growth).toFixed(1)}% WoW
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Total Paid Conversions</div>
+                    <div class="metric-value">${metrics.totalPaidConversions.value.toLocaleString('en-US')}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Trial to Paid Conversion</div>
+                    <div class="metric-value">${metrics.conversion.value.toFixed(1)}%</div>
+                    <div class="metric-subtitle">(${metrics.totalPaidConversions.value} / ${metrics.totalTrials.value})</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Total Trials</div>
+                    <div class="metric-value">${metrics.totalTrials.value.toLocaleString('en-US')}</div>
+                    <div class="metric-growth ${metrics.totalTrials.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.totalTrials.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.totalTrials.growth).toFixed(1)}% WoW
+                    </div>
+                </div>
+            `;
+        }
+
         function generateDashboard(data) {
             console.log('Generating dashboard with data:', data);
+            
+            // Calculate and update KPI metrics
+            const metrics = calculateMetrics(data);
+            updateKPIMetrics(metrics);
 
             // Define brand colors
             const brandColor = '#f57f2b';
