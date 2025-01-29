@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Sales Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+        }
+        h2 {
+            color: #f57f2b;
+            margin-bottom: 30px;
+        }
+        #fileInput {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #f57f2b;
+            border-radius: 5px;
+        }
+        .chart-container {
+            width: 100%;
+            max-width: 800px;
+            margin: auto;
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #f57f2b;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(245, 127, 43, 0.1);
+        }
+        .error {
+            color: red;
+            margin: 10px 0;
+            display: none;
+        }
+        .loading {
+            display: none;
+            margin: 10px 0;
+            color: #666;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .or-divider {
+            color: #666;
+            font-weight: bold;
+        }
+        .drive-button {
+            padding: 10px 20px;
+            background-color: #f57f2b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .drive-button:hover {
+            background-color: #d16418;
+        }
+    </style>
+</head>
+<body>
+    <h2>Interactive Sales Dashboard</h2>
+    <div class="input-group">
+        <input type="file" id="fileInput" accept=".json">
+        <div class="or-divider">OR</div>
+        <button id="loadDriveData" class="drive-button">Load Sample Data</button>
+    </div>
+    <div class="chart-container"><div id="subscription_chart"></div></div>
+    <div class="chart-container"><div id="growth_chart"></div></div>
+    <div class="chart-container"><div id="revenue_chart"></div></div>
+    <div class="chart-container"><div id="platform_chart"></div></div>
+    <div class="chart-container"><div id="geo_chart"></div></div>
+    <div id="errorMessage" class="error"></div>
+    <div id="loadingMessage" class="loading">Loading dashboard...</div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            const errorDiv = document.getElementById('errorMessage');
+            const loadingDiv = document.getElementById('loadingMessage');
+            
+            if (file) {
+                loadingDiv.style.display = 'block';
+                errorDiv.style.display = 'none';
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        if (validateData(data)) {
+                            generateDashboard(data);
+                        } else {
+                            throw new Error('Invalid data format');
+                        }
+                    } catch (error) {
+                        errorDiv.textContent = 'Error: ' + error.message;
+                        errorDiv.style.display = 'block';
+                    } finally {
+                        loadingDiv.style.display = 'none';
+                    }
+                };
+                reader.onerror = function() {
+                    errorDiv.textContent = 'Error reading file';
+                    errorDiv.style.display = 'block';
+                    loadingDiv.style.display = 'none';
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        document.getElementById('loadDriveData').addEventListener('click', function() {
+            const loadingDiv = document.getElementById('loadingMessage');
+            const errorDiv = document.getElementById('errorMessage');
+            
+            loadingDiv.style.display = 'block';
+            errorDiv.style.display = 'none';
+
+            // Using raw GitHub content URL
+            const dataUrl = 'https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/csvjson.json';
+
+            fetch(dataUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (validateData(data)) {
+                    generateDashboard(data);
+                } else {
+                    throw new Error('Invalid data format');
+                }
+            })
+            .catch(error => {
+                errorDiv.textContent = 'Error loading data: ' + error.message;
+                errorDiv.style.display = 'block';
+                console.error('Error:', error);
+            })
+            .finally(() => {
+                loadingDiv.style.display = 'none';
+            });
+        });
+
+        function validateData(data) {
+            // Log the data structure to console for debugging
+            console.log('Received data:', data);
+            
+            // Return true to bypass validation temporarily
+            return true;
+        }
+
+        function generateDashboard(data) {
+            console.log('Generating dashboard with data:', data);
+
+            // Define brand colors
+            const brandColor = '#f57f2b';
+            const brandColorLight = 'rgb(255, 245, 235)';
+            const brandColorDark = '#d16418';
+
+            try {
+                const dataArray = Array.isArray(data) ? data : [data];
+
+                // Subscription Status Distribution
+                const statusCounts = {};
+                dataArray.forEach(item => {
+                    statusCounts[item.status] = (statusCounts[item.status] || 0) + 1;
+                });
+
+                const pieTrace = {
+                    labels: Object.keys(statusCounts),
+                    values: Object.values(statusCounts),
+                    type: 'pie',
+                    marker: {
+                        colors: [brandColor, brandColorDark, brandColorLight]
+                    }
+                };
+                Plotly.newPlot('subscription_chart', [pieTrace], {
+                    title: {
+                        text: 'Subscription Status Distribution',
+                        font: { color: brandColor }
+                    }
+                });
+
+                // Subscription Growth Timeline
+                const timelineData = dataArray.map(item => ({
+                    date: new Date(parseInt(item.first_seen_at)),
+                    isTrialOnly: item.total_spent === 0,
+                    subscription: 1,
+                    revenue: item.total_spent || 0
+                })).sort((a, b) => a.date - b.date);
+
+                let cumulativeTrials = 0;
+                let cumulativePaid = 0;
+                let cumulativeRevenue = 0;
+                const growthData = timelineData.reduce((acc, curr) => {
+                    if (curr.isTrialOnly) {
+                        cumulativeTrials += curr.subscription;
+                    } else {
+                        cumulativePaid += curr.subscription;
+                    }
+                    cumulativeRevenue += curr.revenue;
+                    acc.dates.push(curr.date);
+                    acc.trialCounts.push(cumulativeTrials);
+                    acc.paidCounts.push(cumulativePaid);
+                    acc.totalCounts.push(cumulativeTrials + cumulativePaid);
+                    acc.revenue.push(cumulativeRevenue);
+                    return acc;
+                }, { dates: [], trialCounts: [], paidCounts: [], totalCounts: [], revenue: [] });
+
+                const trialTrace = {
+                    x: growthData.dates,
+                    y: growthData.trialCounts,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Trial Subscriptions',
+                    line: {
+                        color: brandColorLight,
+                        width: 3,
+                        shape: 'hv'
+                    },
+                    fill: 'tozeroy',
+                    fillcolor: 'rgba(245, 127, 43, 0.1)'
+                };
+
+                const paidTrace = {
+                    x: growthData.dates,
+                    y: growthData.paidCounts,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Paid Subscriptions',
+                    line: {
+                        color: brandColor,
+                        width: 3,
+                        shape: 'hv'
+                    },
+                    fill: 'tozeroy',
+                    fillcolor: 'rgba(245, 127, 43, 0.3)'
+                };
+
+                const revenueTrace = {
+                    x: growthData.dates,
+                    y: growthData.revenue,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Cumulative Revenue (USD)',
+                    line: {
+                        color: brandColorDark,
+                        width: 3,
+                        shape: 'hv'
+                    },
+                    yaxis: 'y2',
+                    hovertemplate: '$%{y:,.0f}<extra></extra>'
+                };
+
+                const growthLayout = {
+                    title: {
+                        text: 'Subscription & Revenue Growth Over Time',
+                        font: { color: brandColor }
+                    },
+                    xaxis: {
+                        title: 'Date',
+                        tickfont: { color: '#666' },
+                        tickangle: 45,
+                        type: 'date'
+                    },
+                    yaxis: {
+                        title: 'Number of Subscriptions',
+                        tickfont: { color: '#666' },
+                        side: 'left'
+                    },
+                    yaxis2: {
+                        title: 'Cumulative Revenue (USD)',
+                        tickfont: { color: '#666' },
+                        overlaying: 'y',
+                        side: 'right',
+                        showgrid: false,
+                        tickprefix: '$',
+                        tickformat: ',.0f'
+                    },
+                    paper_bgcolor: 'white',
+                    plot_bgcolor: 'white',
+                    showlegend: true,
+                    legend: {
+                        x: 0.01,
+                        y: 0.99,
+                        bgcolor: 'rgba(255, 255, 255, 0.8)',
+                        bordercolor: brandColor,
+                        borderwidth: 1
+                    },
+                    hovermode: 'x unified'
+                };
+
+                Plotly.newPlot('growth_chart', [trialTrace, paidTrace, revenueTrace], growthLayout);
+
+                // Revenue Analysis by Store
+                const storeRevenueTrace = {
+                    x: dataArray.map(item => item.latest_store || 'Unknown Store'),
+                    y: dataArray.map(item => item.total_spent),
+                    type: 'bar',
+                    name: 'Revenue by Store',
+                    marker: { color: brandColor },
+                    hovertemplate: '$%{y:,.0f}<extra></extra>'
+                };
+                Plotly.newPlot('revenue_chart', [storeRevenueTrace], {
+                    title: {
+                        text: 'Revenue by App Stores',
+                        font: { color: brandColor }
+                    },
+                    xaxis: { 
+                        title: 'Store',
+                        tickangle: 45,
+                        tickfont: { color: '#666' }
+                    },
+                    yaxis: { 
+                        title: 'Total Revenue (USD)',
+                        tickfont: { color: '#666' },
+                        tickprefix: '$',
+                        tickformat: ',.0f'
+                    }
+                });
+
+                // Platform Distribution
+                const platformCounts = {};
+                dataArray.forEach(item => {
+                    platformCounts[item.last_seen_platform] = (platformCounts[item.last_seen_platform] || 0) + 1;
+                });
+
+                const platformTrace = {
+                    x: Object.keys(platformCounts),
+                    y: Object.values(platformCounts),
+                    type: 'bar',
+                    name: 'Platform Distribution',
+                    marker: { color: brandColor }
+                };
+                Plotly.newPlot('platform_chart', [platformTrace], {
+                    title: {
+                        text: 'Platform Distribution',
+                        font: { color: brandColor }
+                    },
+                    yaxis: { 
+                        title: 'Number of Users',
+                        tickfont: { color: '#666' }
+                    },
+                    xaxis: {
+                        tickfont: { color: '#666' }
+                    }
+                });
+
+                // Geographic Distribution
+                const countryCounts = {};
+                dataArray.forEach(item => {
+                    countryCounts[item.last_seen_ip_country] = (countryCounts[item.last_seen_ip_country] || 0) + 1;
+                });
+
+                console.log('Country data:', countryCounts); // Debug log
+
+                const geoTrace = {
+                    type: 'choropleth',
+                    locations: Object.keys(countryCounts).map(code => {
+                        const countryMapping = {
+                            'IN': 'IND',
+                            'US': 'USA',
+                            'GB': 'GBR',
+                            'CA': 'CAN',
+                            // Add more mappings as needed
+                        };
+                        return countryMapping[code] || code;
+                    }),
+                    z: Object.values(countryCounts),
+                    locationmode: 'ISO-3',
+                    colorscale: [
+                        [0, brandColorLight],
+                        [1, brandColor]
+                    ],
+                    showscale: true,
+                    colorbar: {
+                        title: 'Number of Subscriptions',
+                        thickness: 20,
+                        tickfont: { size: 12, color: '#666' }
+                    },
+                    marker: {
+                        line: {
+                            color: 'rgb(255,255,255)',
+                            width: 1
+                        }
+                    }
+                };
+
+                const geoLayout = {
+                    title: {
+                        text: 'Geographic Distribution of Subscriptions',
+                        font: { 
+                            size: 18,
+                            color: brandColor
+                        }
+                    },
+                    geo: {
+                        showframe: true,
+                        showcoastlines: true,
+                        projection: {
+                            type: 'equirectangular'
+                        },
+                        showland: true,
+                        landcolor: 'rgb(243, 243, 243)',
+                        showocean: true,
+                        oceancolor: 'rgb(255, 255, 255)',
+                        showcountries: true,
+                        countrycolor: 'rgb(204, 204, 204)',
+                    },
+                    width: 800,
+                    height: 400,
+                    margin: {
+                        l: 0,
+                        r: 0,
+                        t: 40,
+                        b: 0
+                    }
+                };
+
+                Plotly.newPlot('geo_chart', [geoTrace], geoLayout);
+
+            } catch (error) {
+                console.error('Error generating charts:', error);
+                document.getElementById('errorMessage').textContent = 'Error generating charts: ' + error.message;
+                document.getElementById('errorMessage').style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>
