@@ -311,7 +311,18 @@
             const conversionRate = totalTrials > 0 ? (totalPaidConversions / totalTrials) * 100 : 0;
 
             // Calculate other metrics
-            const calculateRevenue = (items) => items.reduce((sum, item) => sum + (parseFloat(item.total_spent) || 0), 0);
+            const calculateRevenue = (items) => {
+                let total = 0;
+                items.forEach(item => {
+                    const amount = parseFloat(item.total_spent || 0);
+                    if (amount > 0) {
+                        console.log(`Adding revenue: ${amount} from user with status ${item.status}`);
+                        total += amount;
+                    }
+                });
+                console.log(`Total revenue calculated: ${total}`);
+                return total;
+            };
             
             const calculateMRR = (items) => {
                 return items.reduce((sum, item) => {
@@ -324,9 +335,9 @@
                 }, 0);
             };
 
-            // Current period metrics
+            // Current period metrics - use filtered data for period comparison
             const currentRevenue = calculateRevenue(currentMonthData);
-            const currentMRR = calculateMRR(dataArray);
+            const totalRevenue = calculateRevenue(dataArray); // Calculate total revenue from all data
 
             // Previous period metrics
             const lastRevenue = calculateRevenue(lastMonthData);
@@ -382,12 +393,14 @@
 
             return {
                 revenue: {
-                    value: currentRevenue,
-                    growth: calculateGrowth(currentRevenue, lastRevenue)
+                    value: totalRevenue, // Show total revenue regardless of period
+                    growth: calculateGrowth(currentRevenue, lastRevenue) // Growth still based on periods
                 },
                 mrr: {
-                    value: currentMRR,
-                    growth: calculateGrowth(currentMRR, lastMRR)
+                    value: calculateMRR(dataArray),
+                    growth: calculateGrowth(calculateMRR(dataArray), calculateMRR(dataArray.filter(item => 
+                        new Date(parseInt(item.first_seen_at)) < oneMonthAgo
+                    ))
                 },
                 totalPaidConversions: {
                     value: totalPaidConversions,
