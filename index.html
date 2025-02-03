@@ -141,47 +141,10 @@
             outline: none;
             border-color: #d16418;
         }
-        .global-filter-container {
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .global-filter {
-            padding: 8px 12px;
-            border: 1px solid #f57f2b;
-            border-radius: 4px;
-            color: #666;
-            background: white;
-            font-size: 14px;
-        }
-        .global-filter:focus {
-            outline: none;
-            border-color: #d16418;
-        }
-        .filter-label {
-            color: #666;
-            font-size: 14px;
-        }
     </style>
 </head>
 <body>
     <h2>Ryan Fernando App Monetization Analytics</h2>
-    
-    <div class="global-filter-container">
-        <span class="filter-label">Time Period:</span>
-        <select class="global-filter" id="globalTimeFilter" onchange="updateDashboard(this.value)">
-            <option value="1h">Last Hour</option>
-            <option value="1d">Last 24 Hours</option>
-            <option value="7d" selected>Last 7 Days</option>
-            <option value="15d">Last 15 Days</option>
-            <option value="28d">Last 28 Days</option>
-            <option value="1m">Last Month</option>
-            <option value="3m">Last 3 Months</option>
-            <option value="6m">Last 6 Months</option>
-            <option value="all">All Time</option>
-        </select>
-    </div>
     
     <!-- Hidden file input, only shown when needed -->
     <div id="errorContainer" style="display: none;">
@@ -415,21 +378,15 @@
 
         let dashboardData; // Store the original data globally
 
-        function generateDashboard(data, timeFilter = '7d') {
+        function generateDashboard(data) {
             dashboardData = Array.isArray(data) ? data : [data];
-            updateDashboard(timeFilter);
-        }
-
-        function updateDashboard(timeFilter) {
-            if (!dashboardData) return;
-
+            
             // Calculate metrics using full dataset
             currentMetrics = calculateMetrics(dashboardData);
             updateKPIMetrics(currentMetrics);
 
-            // Update charts with filtered data
-            const filteredData = filterDataByTime(dashboardData, timeFilter);
-            updateCharts(filteredData);
+            // Update charts with full dataset
+            updateCharts(dashboardData);
         }
 
         function updateCharts(filteredData) {
@@ -705,47 +662,6 @@
             } catch (error) {
                 console.error('Error updating charts:', error);
             }
-        }
-
-        function filterDataByTime(data, timeFilter) {
-            if (timeFilter === 'all') return data;
-
-            const now = new Date();
-            const filterTime = new Date();
-            
-            switch(timeFilter) {
-                case '1h':
-                    filterTime.setHours(now.getHours() - 1);
-                    break;
-                case '1d':
-                    filterTime.setDate(now.getDate() - 1);
-                    break;
-                case '7d':
-                    filterTime.setDate(now.getDate() - 7);
-                    break;
-                case '15d':
-                    filterTime.setDate(now.getDate() - 15);
-                    break;
-                case '28d':
-                    filterTime.setDate(now.getDate() - 28);
-                    break;
-                case '1m':
-                    filterTime.setMonth(now.getMonth() - 1);
-                    break;
-                case '3m':
-                    filterTime.setMonth(now.getMonth() - 3);
-                    break;
-                case '6m':
-                    filterTime.setMonth(now.getMonth() - 6);
-                    break;
-                default:
-                    return data;
-            }
-
-            return data.filter(item => {
-                const firstSeen = new Date(parseInt(item.first_seen_at));
-                return firstSeen >= filterTime && firstSeen <= now;
-            });
         }
     </script>
 </body>
