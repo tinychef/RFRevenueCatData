@@ -65,7 +65,7 @@
         }
         .metrics-container {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 15px;
             margin-bottom: 30px;
         }
@@ -127,6 +127,19 @@
         }
         #errorContainer {
             margin-bottom: 30px;
+        }
+        .metric-filter {
+            font-size: 11px;
+            padding: 2px 4px;
+            border: 1px solid #f57f2b;
+            border-radius: 4px;
+            color: #666;
+            margin-top: 4px;
+            background: white;
+        }
+        .metric-filter:focus {
+            outline: none;
+            border-color: #d16418;
         }
     </style>
 </head>
@@ -239,6 +252,7 @@
             const now = new Date();
             const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
             const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
+            const threeWeeksAgo = new Date(now - (21 * 24 * 60 * 60 * 1000)); // 21 days ago
 
             // Filter data for different time periods
             const currentMonthData = dataArray.filter(item => new Date(parseInt(item.first_seen_at)) >= oneMonthAgo);
@@ -292,6 +306,50 @@
             // Calculate total trial users (all records)
             const totalTrialUsers = dataArray.length;
 
+            // Calculate inactive users
+            const inactiveUsers = dataArray.filter(item => {
+                const lastSeen = new Date(parseInt(item.last_seen_at));
+                return lastSeen < threeWeeksAgo;
+            }).length;
+
+            // Calculate new users based on time filter
+            const calculateNewUsers = (timeFilter) => {
+                const filterTime = new Date();
+                switch(timeFilter) {
+                    case '1h':
+                        filterTime.setHours(filterTime.getHours() - 1);
+                        break;
+                    case '1d':
+                        filterTime.setDate(filterTime.getDate() - 1);
+                        break;
+                    case '7d':
+                        filterTime.setDate(filterTime.getDate() - 7);
+                        break;
+                    case '15d':
+                        filterTime.setDate(filterTime.getDate() - 15);
+                        break;
+                    case '28d':
+                        filterTime.setDate(filterTime.getDate() - 28);
+                        break;
+                    case '1m':
+                        filterTime.setMonth(filterTime.getMonth() - 1);
+                        break;
+                    case '3m':
+                        filterTime.setMonth(filterTime.getMonth() - 3);
+                        break;
+                    case '6m':
+                        filterTime.setMonth(filterTime.getMonth() - 6);
+                        break;
+                    default:
+                        filterTime.setDate(filterTime.getDate() - 7); // Default to 7 days
+                }
+
+                return dataArray.filter(item => {
+                    const firstSeen = new Date(parseInt(item.first_seen_at));
+                    return firstSeen >= filterTime;
+                }).length;
+            };
+
             return {
                 revenue: {
                     value: currentRevenue,
@@ -312,6 +370,14 @@
                 totalTrials: {
                     value: totalTrials,
                     growth: calculateGrowth(currentMonthData.length, lastMonthData.length)
+                },
+                inactiveUsers: {
+                    value: inactiveUsers,
+                    percentage: (inactiveUsers / totalTrials * 100).toFixed(1)
+                },
+                newUsers: {
+                    value: calculateNewUsers('7d'), // Default to 7 days
+                    calculate: calculateNewUsers // Pass the function for dynamic updates
                 }
             };
         }
@@ -349,15 +415,43 @@
                         ${metrics.totalTrials.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.totalTrials.growth).toFixed(1)}% WoW
                     </div>
                 </div>
+                <div class="metric-card">
+                    <div class="metric-title">Inactive Users (3+ weeks)</div>
+                    <div class="metric-value">${metrics.inactiveUsers.value.toLocaleString('en-US')}</div>
+                    <div class="metric-subtitle">${metrics.inactiveUsers.percentage}% of total users</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">New Users</div>
+                    <div class="metric-value" id="newUsersValue">${metrics.newUsers.value.toLocaleString('en-US')}</div>
+                    <select class="metric-filter" id="newUsersFilter" onchange="updateNewUsersMetric(this.value)">
+                        <option value="1h">Last Hour</option>
+                        <option value="1d">Last 24 Hours</option>
+                        <option value="7d" selected>Last 7 Days</option>
+                        <option value="15d">Last 15 Days</option>
+                        <option value="28d">Last 28 Days</option>
+                        <option value="1m">Last Month</option>
+                        <option value="3m">Last 3 Months</option>
+                        <option value="6m">Last 6 Months</option>
+                    </select>
+                </div>
             `;
+        }
+
+        let currentMetrics; // Store metrics globally for the filter
+        
+        function updateNewUsersMetric(timeFilter) {
+            if (!currentMetrics || !currentMetrics.newUsers.calculate) return;
+            
+            const newValue = currentMetrics.newUsers.calculate(timeFilter);
+            document.getElementById('newUsersValue').textContent = newValue.toLocaleString('en-US');
         }
 
         function generateDashboard(data) {
             console.log('Generating dashboard with data:', data);
             
             // Calculate and update KPI metrics
-            const metrics = calculateMetrics(data);
-            updateKPIMetrics(metrics);
+            currentMetrics = calculateMetrics(data); // Store metrics globally
+            updateKPIMetrics(currentMetrics);
 
             // Define brand colors
             const brandColor = '#f57f2b';
