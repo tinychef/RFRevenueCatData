@@ -141,10 +141,47 @@
             outline: none;
             border-color: #d16418;
         }
+        .global-filter-container {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .global-filter {
+            padding: 8px 12px;
+            border: 1px solid #f57f2b;
+            border-radius: 4px;
+            color: #666;
+            background: white;
+            font-size: 14px;
+        }
+        .global-filter:focus {
+            outline: none;
+            border-color: #d16418;
+        }
+        .filter-label {
+            color: #666;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
     <h2>Ryan Fernando App Monetization Analytics</h2>
+    
+    <div class="global-filter-container">
+        <span class="filter-label">Time Period:</span>
+        <select class="global-filter" id="globalTimeFilter" onchange="updateDashboard(this.value)">
+            <option value="1h">Last Hour</option>
+            <option value="1d">Last 24 Hours</option>
+            <option value="7d" selected>Last 7 Days</option>
+            <option value="15d">Last 15 Days</option>
+            <option value="28d">Last 28 Days</option>
+            <option value="1m">Last Month</option>
+            <option value="3m">Last 3 Months</option>
+            <option value="6m">Last 6 Months</option>
+            <option value="all">All Time</option>
+        </select>
+    </div>
     
     <!-- Hidden file input, only shown when needed -->
     <div id="errorContainer" style="display: none;">
@@ -430,24 +467,36 @@
             document.getElementById('newUsersValue').textContent = newValue.toLocaleString('en-US');
         }
 
-        function generateDashboard(data) {
-            console.log('Generating dashboard with data:', data);
+        let dashboardData; // Store the original data globally
+
+        function generateDashboard(data, timeFilter = '7d') {
+            dashboardData = Array.isArray(data) ? data : [data];
+            updateDashboard(timeFilter);
+        }
+
+        function updateDashboard(timeFilter) {
+            if (!dashboardData) return;
+
+            const filteredData = filterDataByTime(dashboardData, timeFilter);
+            console.log(`Updating dashboard with ${filteredData.length} records for period: ${timeFilter}`);
             
-            // Calculate and update KPI metrics
-            currentMetrics = calculateMetrics(data); // Store metrics globally
+            // Update metrics
+            currentMetrics = calculateMetrics(filteredData);
             updateKPIMetrics(currentMetrics);
 
-            // Define brand colors
+            // Update charts
+            updateCharts(filteredData);
+        }
+
+        function updateCharts(filteredData) {
             const brandColor = '#f57f2b';
             const brandColorLight = 'rgb(255, 245, 235)';
             const brandColorDark = '#d16418';
 
             try {
-                const dataArray = Array.isArray(data) ? data : [data];
-
                 // Subscription Status Distribution
                 const statusCounts = {};
-                dataArray.forEach(item => {
+                filteredData.forEach(item => {
                     statusCounts[item.status] = (statusCounts[item.status] || 0) + 1;
                 });
 
@@ -467,7 +516,7 @@
                 });
 
                 // Subscription Growth Timeline
-                const timelineData = dataArray.map(item => ({
+                const timelineData = filteredData.map(item => ({
                     date: new Date(parseInt(item.first_seen_at)),
                     isTrialOnly: item.total_spent === 0,
                     subscription: 1,
@@ -579,7 +628,7 @@
 
                 // Revenue Analysis by Store
                 const storeRevenue = {};
-                dataArray.forEach(item => {
+                filteredData.forEach(item => {
                     const store = item.latest_store || 'Unknown Store';
                     storeRevenue[store] = (storeRevenue[store] || 0) + parseFloat(item.total_spent || 0);
                 });
@@ -609,7 +658,7 @@
 
                 // Platform Distribution
                 const platformCounts = {};
-                dataArray.forEach(item => {
+                filteredData.forEach(item => {
                     platformCounts[item.last_seen_platform] = (platformCounts[item.last_seen_platform] || 0) + 1;
                 });
 
@@ -638,7 +687,7 @@
 
                 // Geographic Distribution
                 const countryCounts = {};
-                dataArray.forEach(item => {
+                filteredData.forEach(item => {
                     countryCounts[item.last_seen_ip_country] = (countryCounts[item.last_seen_ip_country] || 0) + 1;
                 });
 
@@ -710,10 +759,47 @@
                 Plotly.newPlot('geo_chart', [geoTrace], geoLayout);
 
             } catch (error) {
-                console.error('Error generating charts:', error);
-                document.getElementById('errorMessage').textContent = 'Error generating charts: ' + error.message;
-                document.getElementById('errorMessage').style.display = 'block';
+                console.error('Error updating charts:', error);
             }
+        }
+
+        function filterDataByTime(data, timeFilter) {
+            if (timeFilter === 'all') return data;
+
+            const filterTime = new Date();
+            switch(timeFilter) {
+                case '1h':
+                    filterTime.setHours(filterTime.getHours() - 1);
+                    break;
+                case '1d':
+                    filterTime.setDate(filterTime.getDate() - 1);
+                    break;
+                case '7d':
+                    filterTime.setDate(filterTime.getDate() - 7);
+                    break;
+                case '15d':
+                    filterTime.setDate(filterTime.getDate() - 15);
+                    break;
+                case '28d':
+                    filterTime.setDate(filterTime.getDate() - 28);
+                    break;
+                case '1m':
+                    filterTime.setMonth(filterTime.getMonth() - 1);
+                    break;
+                case '3m':
+                    filterTime.setMonth(filterTime.getMonth() - 3);
+                    break;
+                case '6m':
+                    filterTime.setMonth(filterTime.getMonth() - 6);
+                    break;
+                default:
+                    return data;
+            }
+
+            return data.filter(item => {
+                const itemDate = new Date(parseInt(item.first_seen_at));
+                return itemDate >= filterTime;
+            });
         }
     </script>
 </body>
