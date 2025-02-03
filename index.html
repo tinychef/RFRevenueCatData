@@ -741,8 +741,8 @@
             }
 
             return data.filter(item => {
-                const itemDate = new Date(parseInt(item.first_seen_at));
-                return itemDate >= filterTime;
+                const lastSeen = new Date(parseInt(item.last_seen_at));
+                return lastSeen >= filterTime;
             });
         }
     </script>
