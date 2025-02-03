@@ -13,9 +13,13 @@ COMMIT_MESSAGE="$1"
 # Configure git pull strategy (only needs to be done once)
 git config pull.rebase false
 
-# Add all changed files
-echo "Adding files to staging..."
-git add index.html csvjson.json git-publish.sh
+# Checkout csvjson.json from remote to avoid conflicts
+echo "Resetting data file..."
+git checkout origin/main csvjson.json
+
+# Add only dashboard files
+echo "Adding dashboard files to staging..."
+git add index.html git-publish.sh
 
 # Commit changes with provided message
 echo -e "\nCommitting changes..."
