@@ -290,25 +290,21 @@
             const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
             const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
 
-            // Calculate metrics that should always use full dataset
-            const calculateTotalRevenue = (items) => {
-                return items.reduce((sum, item) => sum + (parseFloat(item.total_spent) || 0), 0);
-            };
-
-            const totalRevenue = calculateTotalRevenue(dataArray);
+            // Calculate total metrics (unfiltered)
+            const totalRevenue = dataArray.reduce((sum, item) => sum + (parseFloat(item.total_spent) || 0), 0);
             const totalTrials = dataArray.length;
             const totalPaidConversions = dataArray.filter(item => parseFloat(item.total_spent) > 0).length;
             const conversionRate = totalTrials > 0 ? (totalPaidConversions / totalTrials) * 100 : 0;
 
-            // Calculate period-specific metrics
+            // Calculate period metrics
             const currentMonthData = dataArray.filter(item => new Date(parseInt(item.first_seen_at)) >= oneMonthAgo);
             const lastMonthData = dataArray.filter(item => {
                 const date = new Date(parseInt(item.first_seen_at));
                 return date >= twoMonthsAgo && date < oneMonthAgo;
             });
 
-            const currentPeriodRevenue = calculateTotalRevenue(currentMonthData);
-            const lastPeriodRevenue = calculateTotalRevenue(lastMonthData);
+            const currentPeriodRevenue = currentMonthData.reduce((sum, item) => sum + (parseFloat(item.total_spent) || 0), 0);
+            const lastPeriodRevenue = lastMonthData.reduce((sum, item) => sum + (parseFloat(item.total_spent) || 0), 0);
 
             // Calculate MRR
             const calculateMRR = (items) => {
@@ -323,9 +319,7 @@
             };
 
             const currentMRR = calculateMRR(dataArray);
-            const lastMRR = calculateMRR(dataArray.filter(item => 
-                new Date(parseInt(item.first_seen_at)) < oneMonthAgo
-            ));
+            const lastMRR = calculateMRR(lastMonthData);
 
             // Calculate growth
             const calculateGrowth = (current, previous) => {
@@ -334,7 +328,7 @@
 
             return {
                 revenue: {
-                    value: totalRevenue, // Always show total revenue
+                    value: totalRevenue,
                     growth: calculateGrowth(currentPeriodRevenue, lastPeriodRevenue)
                 },
                 mrr: {
@@ -354,8 +348,8 @@
                     growth: calculateGrowth(currentMonthData.length, lastMonthData.length)
                 },
                 newUsers: {
-                    value: data.length,
-                    calculate: (timeFilter) => filterDataByTime(dataArray, timeFilter).length
+                    value: dataArray.length,
+                    calculate: (timeFilter) => filterDataByTime(dashboardData, timeFilter).length
                 }
             };
         }
@@ -429,14 +423,12 @@
         function updateDashboard(timeFilter) {
             if (!dashboardData) return;
 
-            const filteredData = filterDataByTime(dashboardData, timeFilter);
-            console.log(`Updating dashboard with ${filteredData.length} records for period: ${timeFilter}`);
-            
-            // Update metrics
-            currentMetrics = calculateMetrics(filteredData);
+            // Calculate metrics using full dataset
+            currentMetrics = calculateMetrics(dashboardData);
             updateKPIMetrics(currentMetrics);
 
-            // Update charts
+            // Update charts with filtered data
+            const filteredData = filterDataByTime(dashboardData, timeFilter);
             updateCharts(filteredData);
         }
 
