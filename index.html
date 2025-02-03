@@ -710,39 +710,41 @@
         function filterDataByTime(data, timeFilter) {
             if (timeFilter === 'all') return data;
 
+            const now = new Date();
             const filterTime = new Date();
+            
             switch(timeFilter) {
                 case '1h':
-                    filterTime.setHours(filterTime.getHours() - 1);
+                    filterTime.setHours(now.getHours() - 1);
                     break;
                 case '1d':
-                    filterTime.setDate(filterTime.getDate() - 1);
+                    filterTime.setDate(now.getDate() - 1);
                     break;
                 case '7d':
-                    filterTime.setDate(filterTime.getDate() - 7);
+                    filterTime.setDate(now.getDate() - 7);
                     break;
                 case '15d':
-                    filterTime.setDate(filterTime.getDate() - 15);
+                    filterTime.setDate(now.getDate() - 15);
                     break;
                 case '28d':
-                    filterTime.setDate(filterTime.getDate() - 28);
+                    filterTime.setDate(now.getDate() - 28);
                     break;
                 case '1m':
-                    filterTime.setMonth(filterTime.getMonth() - 1);
+                    filterTime.setMonth(now.getMonth() - 1);
                     break;
                 case '3m':
-                    filterTime.setMonth(filterTime.getMonth() - 3);
+                    filterTime.setMonth(now.getMonth() - 3);
                     break;
                 case '6m':
-                    filterTime.setMonth(filterTime.getMonth() - 6);
+                    filterTime.setMonth(now.getMonth() - 6);
                     break;
                 default:
                     return data;
             }
 
             return data.filter(item => {
-                const lastSeen = new Date(parseInt(item.last_seen_at));
-                return lastSeen >= filterTime;
+                const firstSeen = new Date(parseInt(item.first_seen_at));
+                return firstSeen >= filterTime && firstSeen <= now;
             });
         }
     </script>
