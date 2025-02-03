@@ -252,7 +252,6 @@
             const now = new Date();
             const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
             const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
-            const threeWeeksAgo = new Date(now - (21 * 24 * 60 * 60 * 1000)); // 21 days ago
 
             // Filter data for different time periods
             const currentMonthData = dataArray.filter(item => new Date(parseInt(item.first_seen_at)) >= oneMonthAgo);
