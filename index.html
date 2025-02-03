@@ -128,19 +128,6 @@
         #errorContainer {
             margin-bottom: 30px;
         }
-        .metric-filter {
-            font-size: 11px;
-            padding: 2px 4px;
-            border: 1px solid #f57f2b;
-            border-radius: 4px;
-            color: #666;
-            margin-top: 4px;
-            background: white;
-        }
-        .metric-filter:focus {
-            outline: none;
-            border-color: #d16418;
-        }
     </style>
 </head>
 <body>
@@ -311,8 +298,7 @@
                     growth: calculateGrowth(currentMonthData.length, lastMonthData.length)
                 },
                 newUsers: {
-                    value: dataArray.length,
-                    calculate: (timeFilter) => filterDataByTime(dashboardData, timeFilter).length
+                    value: dataArray.length
                 }
             };
         }
@@ -352,28 +338,9 @@
                 </div>
                 <div class="metric-card">
                     <div class="metric-title">New Users</div>
-                    <div class="metric-value" id="newUsersValue">${metrics.newUsers.value.toLocaleString('en-US')}</div>
-                    <select class="metric-filter" id="newUsersFilter" onchange="updateNewUsersMetric(this.value)">
-                        <option value="1h">Last Hour</option>
-                        <option value="1d">Last 24 Hours</option>
-                        <option value="7d" selected>Last 7 Days</option>
-                        <option value="15d">Last 15 Days</option>
-                        <option value="28d">Last 28 Days</option>
-                        <option value="1m">Last Month</option>
-                        <option value="3m">Last 3 Months</option>
-                        <option value="6m">Last 6 Months</option>
-                    </select>
+                    <div class="metric-value">${metrics.newUsers.value.toLocaleString('en-US')}</div>
                 </div>
             `;
-        }
-
-        let currentMetrics; // Store metrics globally for the filter
-        
-        function updateNewUsersMetric(timeFilter) {
-            if (!currentMetrics || !currentMetrics.newUsers.calculate) return;
-            
-            const newValue = currentMetrics.newUsers.calculate(timeFilter);
-            document.getElementById('newUsersValue').textContent = newValue.toLocaleString('en-US');
         }
 
         let dashboardData; // Store the original data globally
@@ -382,7 +349,7 @@
             dashboardData = Array.isArray(data) ? data : [data];
             
             // Calculate metrics using full dataset
-            currentMetrics = calculateMetrics(dashboardData);
+            const currentMetrics = calculateMetrics(dashboardData);
             updateKPIMetrics(currentMetrics);
 
             // Update charts with full dataset
