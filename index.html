@@ -149,6 +149,7 @@
     <div class="chart-container"><div id="revenue_chart"></div></div>
     <div class="chart-container"><div id="platform_chart"></div></div>
     <div class="chart-container"><div id="geo_chart"></div></div>
+    <div class="chart-container"><div id="revenue_growth_chart"></div></div>
     <div id="errorMessage" class="error"></div>
     <div id="loadingMessage" class="loading">Loading dashboard...</div>
 
@@ -625,6 +626,96 @@
                 };
 
                 Plotly.newPlot('geo_chart', [geoTrace], geoLayout);
+
+                // Monthly and Quarterly Revenue Growth
+                const revenueByPeriod = filteredData.reduce((acc, item) => {
+                    const date = new Date(parseInt(item.first_seen_at));
+                    const month = date.toLocaleString('default', { year: 'numeric', month: 'short' });
+                    const quarter = `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`;
+                    const revenue = parseFloat(item.total_spent) || 0;
+
+                    // Aggregate monthly
+                    acc.monthly[month] = (acc.monthly[month] || 0) + revenue;
+                    
+                    // Aggregate quarterly
+                    acc.quarterly[quarter] = (acc.quarterly[quarter] || 0) + revenue;
+                    
+                    return acc;
+                }, { monthly: {}, quarterly: {} });
+
+                // Convert to arrays and sort chronologically
+                const monthlyData = Object.entries(revenueByPeriod.monthly)
+                    .sort((a, b) => new Date(a[0]) - new Date(b[0]));
+                const quarterlyData = Object.entries(revenueByPeriod.quarterly)
+                    .sort((a, b) => {
+                        const [q1, y1] = a[0].split(' ');
+                        const [q2, y2] = b[0].split(' ');
+                        return (y1 - y2) || (q1.slice(1) - q2.slice(1));
+                    });
+
+                const monthlyTrace = {
+                    x: monthlyData.map(([month]) => month),
+                    y: monthlyData.map(([, value]) => value),
+                    type: 'bar',
+                    name: 'Monthly Revenue',
+                    marker: { color: brandColor },
+                    hovertemplate: '$%{y:,.0f}<extra></extra>'
+                };
+
+                const quarterlyTrace = {
+                    x: quarterlyData.map(([quarter]) => quarter),
+                    y: quarterlyData.map(([, value]) => value),
+                    type: 'bar',
+                    name: 'Quarterly Revenue',
+                    marker: { color: brandColorDark },
+                    visible: false,
+                    hovertemplate: '$%{y:,.0f}<extra></extra>'
+                };
+
+                const revenueGrowthLayout = {
+                    title: {
+                        text: 'Subscription Revenue Growth',
+                        font: { color: brandColor }
+                    },
+                    xaxis: {
+                        title: 'Period',
+                        tickfont: { color: '#666' }
+                    },
+                    yaxis: {
+                        title: 'Revenue (USD)',
+                        tickfont: { color: '#666' },
+                        tickprefix: '$',
+                        tickformat: ',.0f'
+                    },
+                    showlegend: true,
+                    legend: {
+                        x: 0.01,
+                        y: 0.99,
+                        bgcolor: 'rgba(255, 255, 255, 0.8)',
+                        bordercolor: brandColor,
+                        borderwidth: 1
+                    },
+                    updatemenus: [{
+                        type: 'buttons',
+                        showactive: true,
+                        x: 0.1,
+                        y: 1.1,
+                        buttons: [
+                            {
+                                args: [{'visible': [true, false]}],
+                                label: 'Monthly',
+                                method: 'restyle'
+                            },
+                            {
+                                args: [{'visible': [false, true]}],
+                                label: 'Quarterly',
+                                method: 'restyle'
+                            }
+                        ]
+                    }]
+                };
+
+                Plotly.newPlot('revenue_growth_chart', [monthlyTrace, quarterlyTrace], revenueGrowthLayout);
 
             } catch (error) {
                 console.error('Error updating charts:', error);
