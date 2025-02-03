@@ -306,12 +306,6 @@
             // Calculate total trial users (all records)
             const totalTrialUsers = dataArray.length;
 
-            // Calculate inactive users
-            const inactiveUsers = dataArray.filter(item => {
-                const lastSeen = new Date(parseInt(item.last_seen_at));
-                return lastSeen < threeWeeksAgo;
-            }).length;
-
             // Calculate new users based on time filter
             const calculateNewUsers = (timeFilter) => {
                 const filterTime = new Date();
@@ -371,13 +365,9 @@
                     value: totalTrials,
                     growth: calculateGrowth(currentMonthData.length, lastMonthData.length)
                 },
-                inactiveUsers: {
-                    value: inactiveUsers,
-                    percentage: (inactiveUsers / totalTrials * 100).toFixed(1)
-                },
                 newUsers: {
-                    value: calculateNewUsers('7d'), // Default to 7 days
-                    calculate: calculateNewUsers // Pass the function for dynamic updates
+                    value: calculateNewUsers('7d'),
+                    calculate: calculateNewUsers
                 }
             };
         }
@@ -414,11 +404,6 @@
                     <div class="metric-growth ${metrics.totalTrials.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
                         ${metrics.totalTrials.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.totalTrials.growth).toFixed(1)}% WoW
                     </div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Inactive Users (3+ weeks)</div>
-                    <div class="metric-value">${metrics.inactiveUsers.value.toLocaleString('en-US')}</div>
-                    <div class="metric-subtitle">${metrics.inactiveUsers.percentage}% of total users</div>
                 </div>
                 <div class="metric-card">
                     <div class="metric-title">New Users</div>
