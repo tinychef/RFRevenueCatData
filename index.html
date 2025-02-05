@@ -838,7 +838,8 @@
                     y: weeklyData.map(([, data]) => data.iOS.trials),
                     type: 'bar',
                     name: 'iOS Trials',
-                    marker: { color: '#007AFF' }  // iOS Blue
+                    marker: { color: '#8E8E93' },  // iOS Light Gray
+                    stackgroup: 'ios'
                 };
 
                 const iOSPaidTrace = {
@@ -846,7 +847,8 @@
                     y: weeklyData.map(([, data]) => data.iOS.paid),
                     type: 'bar',
                     name: 'iOS Paid',
-                    marker: { color: '#5856D6' }  // iOS Purple
+                    marker: { color: '#1D1D1F' },  // iOS Dark Gray/Black
+                    stackgroup: 'ios'
                 };
 
                 const androidTrialsTrace = {
@@ -854,7 +856,8 @@
                     y: weeklyData.map(([, data]) => data.Android.trials),
                     type: 'bar',
                     name: 'Android Trials',
-                    marker: { color: '#34C759' }  // Light Green
+                    marker: { color: '#82B1FF' },  // Android Light Blue
+                    stackgroup: 'android'
                 };
 
                 const androidPaidTrace = {
@@ -862,7 +865,8 @@
                     y: weeklyData.map(([, data]) => data.Android.paid),
                     type: 'bar',
                     name: 'Android Paid',
-                    marker: { color: '#FF3B30' }  // Red
+                    marker: { color: '#2962FF' },  // Android Dark Blue
+                    stackgroup: 'android'
                 };
 
                 const weeklyGrowthLayout = {
@@ -876,7 +880,7 @@
                             font: { color: '#666' }
                         },
                         tickfont: { color: '#666' },
-                        tickangle: 0  // Remove tilt
+                        tickangle: 0
                     },
                     yaxis: {
                         title: 'Number of Users',
@@ -885,12 +889,14 @@
                             data.iOS.trials + data.iOS.paid + data.Android.trials + data.Android.paid
                         ))]
                     },
-                    barmode: 'stack',
+                    barmode: 'group',
+                    bargap: 0.3,        // Gap between week groups
+                    bargroupgap: 0.1,   // Gap between platform groups
                     showlegend: true,
                     legend: {
                         orientation: 'h',
                         yanchor: 'top',
-                        y: -0.35,  // Move legend further down
+                        y: -0.35,
                         xanchor: 'center',
                         x: 0.5,
                         bgcolor: 'rgba(255, 255, 255, 0.8)',
@@ -898,10 +904,10 @@
                         borderwidth: 1
                     },
                     margin: {
-                        b: 180,  // Increase bottom margin for legend
-                        t: 50,   // Top margin
-                        l: 80,   // Left margin
-                        r: 50    // Right margin
+                        b: 180,
+                        t: 50,
+                        l: 80,
+                        r: 50
                     },
                     hovermode: 'x unified',
                     annotations: annotations
