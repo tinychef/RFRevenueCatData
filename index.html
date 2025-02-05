@@ -150,6 +150,7 @@
     <div class="chart-container"><div id="platform_chart"></div></div>
     <div class="chart-container"><div id="geo_chart"></div></div>
     <div class="chart-container"><div id="revenue_growth_chart"></div></div>
+    <div class="chart-container"><div id="weekly_growth_chart"></div></div>
     <div id="errorMessage" class="error"></div>
     <div id="loadingMessage" class="loading">Loading dashboard...</div>
 
@@ -629,10 +630,14 @@
 
                 // Monthly and Quarterly Revenue Growth
                 const revenueByPeriod = filteredData.reduce((acc, item) => {
-                    const date = new Date(parseInt(item.first_seen_at));
-                    const month = date.toLocaleString('default', { year: 'numeric', month: 'short' });
-                    const quarter = `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`;
+                    const purchaseDate = item.most_recent_purchase_at ? new Date(parseInt(item.most_recent_purchase_at)) : null;
+                    if (!purchaseDate) return acc;
+
                     const revenue = parseFloat(item.total_spent) || 0;
+                    if (revenue === 0) return acc;
+
+                    const month = purchaseDate.toLocaleString('default', { year: 'numeric', month: 'short' });
+                    const quarter = `Q${Math.floor(purchaseDate.getMonth() / 3) + 1} ${purchaseDate.getFullYear()}`;
 
                     // Aggregate monthly
                     acc.monthly[month] = (acc.monthly[month] || 0) + revenue;
@@ -643,9 +648,12 @@
                     return acc;
                 }, { monthly: {}, quarterly: {} });
 
+                // Debug log
+                console.log('Revenue by period:', revenueByPeriod);
+
                 // Convert to arrays and sort chronologically
                 const monthlyData = Object.entries(revenueByPeriod.monthly)
-                    .sort((a, b) => new Date(a[0]) - new Date(b[0]));
+                    .sort((a, b) => new Date(a[0] + ' 1') - new Date(b[0] + ' 1'));
                 const quarterlyData = Object.entries(revenueByPeriod.quarterly)
                     .sort((a, b) => {
                         const [q1, y1] = a[0].split(' ');
@@ -716,6 +724,193 @@
                 };
 
                 Plotly.newPlot('revenue_growth_chart', [monthlyTrace, quarterlyTrace], revenueGrowthLayout);
+
+                // Week over Week Growth by Platform
+                const getWeekStart = (date) => {
+                    const d = new Date(date);
+                    d.setHours(0, 0, 0, 0);
+                    d.setDate(d.getDate() - d.getDay()); // Set to Sunday
+                    return d.toISOString().split('T')[0];
+                };
+
+                const weeklyGrowthData = filteredData.reduce((acc, item) => {
+                    // For trials, use trial_start_at
+                    const trialDate = item.trial_start_at ? new Date(parseInt(item.trial_start_at)) : null;
+                    // For paid users, use most_recent_purchase_at
+                    const purchaseDate = item.most_recent_purchase_at ? new Date(parseInt(item.most_recent_purchase_at)) : null;
+                    
+                    const store = item.latest_store?.toLowerCase() || '';
+                    const isPaid = parseFloat(item.total_spent) > 0;
+
+                    // Process trial users
+                    if (trialDate) {
+                        const weekKey = getWeekStart(trialDate);
+
+                        if (!acc[weekKey]) {
+                            acc[weekKey] = {
+                                iOS: { trials: 0, paid: 0 },
+                                Android: { trials: 0, paid: 0 }
+                            };
+                        }
+
+                        if (store.includes('app_store')) {
+                            acc[weekKey].iOS.trials++;
+                        } else if (store.includes('play_store')) {
+                            acc[weekKey].Android.trials++;
+                        }
+                    }
+
+                    // Process paid users
+                    if (purchaseDate && isPaid) {
+                        const weekKey = getWeekStart(purchaseDate);
+
+                        if (!acc[weekKey]) {
+                            acc[weekKey] = {
+                                iOS: { trials: 0, paid: 0 },
+                                Android: { trials: 0, paid: 0 }
+                            };
+                        }
+
+                        if (store.includes('app_store')) {
+                            acc[weekKey].iOS.paid++;
+                        } else if (store.includes('play_store')) {
+                            acc[weekKey].Android.paid++;
+                        }
+                    }
+
+                    return acc;
+                }, {});
+
+                // Calculate total trials and paid for each week
+                const weeklyData = Object.entries(weeklyGrowthData)
+                    .sort(([a], [b]) => new Date(a) - new Date(b))
+                    .map(([week, data]) => {
+                        const totalTrials = data.iOS.trials + data.Android.trials;
+                        const totalPaid = data.iOS.paid + data.Android.paid;
+                        const conversionRate = totalTrials > 0 ? (totalPaid / totalTrials * 100).toFixed(1) : 0;
+                        
+                        // Calculate total revenue for the week
+                        const weekRevenue = filteredData
+                            .filter(item => {
+                                const purchaseDate = item.most_recent_purchase_at ? new Date(parseInt(item.most_recent_purchase_at)) : null;
+                                if (!purchaseDate) return false;
+                                const purchaseWeek = getWeekStart(purchaseDate);
+                                return purchaseWeek === week;
+                            })
+                            .reduce((sum, item) => sum + (parseFloat(item.total_spent) || 0), 0);
+                        
+                        return [week, data, conversionRate, weekRevenue];
+                    });
+
+                // Add conversion rate and revenue annotations
+                const annotations = weeklyData.map(([week, data, conversionRate, weekRevenue], index) => [
+                    {
+                        x: week,
+                        y: 1.1 * Math.max(...weeklyData.map(([,data]) => 
+                            data.iOS.trials + data.iOS.paid + data.Android.trials + data.Android.paid
+                        )), // Position above highest bar
+                        text: `Conv: ${conversionRate}%`,
+                        showarrow: false,
+                        yshift: 0,
+                        font: {
+                            size: 12,
+                            color: '#666'
+                        }
+                    },
+                    {
+                        x: week,
+                        y: 1.2 * Math.max(...weeklyData.map(([,data]) => 
+                            data.iOS.trials + data.iOS.paid + data.Android.trials + data.Android.paid
+                        )), // Position even higher
+                        text: `Rev: $${weekRevenue.toLocaleString('en-US', {maximumFractionDigits: 0})}`,
+                        showarrow: false,
+                        yshift: 0,
+                        font: {
+                            size: 12,
+                            color: '#666'
+                        }
+                    }
+                ]).flat();
+
+                // Create traces for the bar chart
+                const iOSTrialsTrace = {
+                    x: weeklyData.map(([week]) => week),
+                    y: weeklyData.map(([, data]) => data.iOS.trials),
+                    type: 'bar',
+                    name: 'iOS Trials',
+                    marker: { color: '#007AFF' }  // iOS Blue
+                };
+
+                const iOSPaidTrace = {
+                    x: weeklyData.map(([week]) => week),
+                    y: weeklyData.map(([, data]) => data.iOS.paid),
+                    type: 'bar',
+                    name: 'iOS Paid',
+                    marker: { color: '#5856D6' }  // iOS Purple
+                };
+
+                const androidTrialsTrace = {
+                    x: weeklyData.map(([week]) => week),
+                    y: weeklyData.map(([, data]) => data.Android.trials),
+                    type: 'bar',
+                    name: 'Android Trials',
+                    marker: { color: '#34C759' }  // Light Green
+                };
+
+                const androidPaidTrace = {
+                    x: weeklyData.map(([week]) => week),
+                    y: weeklyData.map(([, data]) => data.Android.paid),
+                    type: 'bar',
+                    name: 'Android Paid',
+                    marker: { color: '#FF3B30' }  // Red
+                };
+
+                const weeklyGrowthLayout = {
+                    title: {
+                        text: 'Weekly Growth by Platform',
+                        font: { color: brandColor }
+                    },
+                    xaxis: {
+                        title: {
+                            text: 'Week Starting',
+                            font: { color: '#666' }
+                        },
+                        tickfont: { color: '#666' },
+                        tickangle: 0  // Remove tilt
+                    },
+                    yaxis: {
+                        title: 'Number of Users',
+                        tickfont: { color: '#666' },
+                        range: [0, 1.3 * Math.max(...weeklyData.map(([,data]) => 
+                            data.iOS.trials + data.iOS.paid + data.Android.trials + data.Android.paid
+                        ))]
+                    },
+                    barmode: 'stack',
+                    showlegend: true,
+                    legend: {
+                        orientation: 'h',
+                        yanchor: 'top',
+                        y: -0.35,  // Move legend further down
+                        xanchor: 'center',
+                        x: 0.5,
+                        bgcolor: 'rgba(255, 255, 255, 0.8)',
+                        bordercolor: brandColor,
+                        borderwidth: 1
+                    },
+                    margin: {
+                        b: 180,  // Increase bottom margin for legend
+                        t: 50,   // Top margin
+                        l: 80,   // Left margin
+                        r: 50    // Right margin
+                    },
+                    hovermode: 'x unified',
+                    annotations: annotations
+                };
+
+                Plotly.newPlot('weekly_growth_chart', 
+                    [iOSTrialsTrace, iOSPaidTrace, androidTrialsTrace, androidPaidTrace], 
+                    weeklyGrowthLayout
+                );
 
             } catch (error) {
                 console.error('Error updating charts:', error);
