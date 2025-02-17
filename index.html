@@ -166,13 +166,20 @@
             // Using the GitHub raw content URLs
             const revenueCatUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/csvjson.json';
             const unbounceUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/Unbounce_landing_page_leads_data.json';
+            const oneSignalUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/OneSignal_Data_on_user_behaviour.json';
 
-            // Load both files
+            // Load all files
             Promise.all([
                 fetch(revenueCatUrl).then(response => response.json()),
-                fetch(unbounceUrl).then(response => response.json())
+                fetch(unbounceUrl).then(response => response.json()),
+                fetch(oneSignalUrl)
+                    .then(response => response.json())
+                    .catch(error => {
+                        document.getElementById('errorMessage').innerHTML = 'Note: OneSignal data failed to load. Account Created metrics may be inaccurate.';
+                        return []; // Return empty array but continue loading
+                    })
             ])
-            .then(([revenueCatData, unbounceData]) => {
+            .then(([revenueCatData, unbounceData, oneSignalData = []]) => {
                 if (validateData(revenueCatData)) {
                     // Calculate WoW for Landing Page Signups
                     const now = new Date();
@@ -198,6 +205,37 @@
                         growth: signupsGrowth,
                         currentWeek: currentWeekSignups,
                         lastWeek: lastWeekSignups
+                    };
+                    
+                    // Calculate Account Created metrics
+                    const accountCreatedData = oneSignalData.filter(user => user.tags && user.tags.account_created === "true");
+                    console.log('Total accounts created:', accountCreatedData.length);
+                    
+                    // Calculate weekly numbers using first_session for timing
+                    const currentWeekAccounts = accountCreatedData.filter(user => {
+                        const sessionDate = new Date(user.first_session); // Direct parse, no parseInt needed
+                        console.log('First session raw:', user.first_session);
+                        console.log('First session parsed:', sessionDate);
+                        return sessionDate >= oneWeekAgo;
+                    }).length;
+                    console.log('Current week accounts:', currentWeekAccounts);
+                    console.log('One week ago:', oneWeekAgo);
+
+                    const lastWeekAccounts = accountCreatedData.filter(user => {
+                        const sessionDate = new Date(user.first_session); // Direct parse, no parseInt needed
+                        return sessionDate >= twoWeeksAgo && sessionDate < oneWeekAgo;
+                    }).length;
+                    console.log('Last week accounts:', lastWeekAccounts);
+                    console.log('Two weeks ago:', twoWeeksAgo);
+
+                    const accountsGrowth = lastWeekAccounts > 0 ? 
+                        ((currentWeekAccounts - lastWeekAccounts) / lastWeekAccounts) * 100 : 100;
+
+                    metrics.accountsCreated = {
+                        value: accountCreatedData.length,
+                        growth: accountsGrowth,
+                        currentWeek: currentWeekAccounts,
+                        lastWeek: lastWeekAccounts
                     };
                     
                     generateDashboard(revenueCatData, metrics);
@@ -374,7 +412,8 @@
                 },
                 newUsers: {
                     value: dataArray.length
-                }
+                },
+                accountsCreated: null
             };
         }
 
@@ -439,6 +478,16 @@
                     </div>
                     <div class="metric-subtitle">
                         (This week: ${metrics.newUsers.currentWeek} / Last week: ${metrics.newUsers.lastWeek})
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Accounts Created</div>
+                    <div class="metric-value">${(metrics.accountsCreated ? metrics.accountsCreated.value : 0).toLocaleString('en-US')}</div>
+                    <div class="metric-growth ${metrics.accountsCreated.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.accountsCreated.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.accountsCreated.growth).toFixed(1)}% WoW
+                    </div>
+                    <div class="metric-subtitle">
+                        (This week: ${metrics.accountsCreated.currentWeek} / Last week: ${metrics.accountsCreated.lastWeek})
                     </div>
                 </div>
             `;
