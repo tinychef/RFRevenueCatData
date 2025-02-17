@@ -323,30 +323,6 @@
                         lastWeek: lastWeekForms
                     };
                     
-                    // Calculate Diet Plans Created metrics
-                    const dietPlansData = oneSignalData.filter(user => user.tags && user.tags.DietPlanGenerate === "true");
-                    
-                    // Calculate weekly numbers using first_session for timing
-                    const currentWeekDietPlans = dietPlansData.filter(user => {
-                        const sessionDate = new Date(user.first_session);
-                        return sessionDate >= oneWeekAgo;
-                    }).length;
-
-                    const lastWeekDietPlans = dietPlansData.filter(user => {
-                        const sessionDate = new Date(user.first_session);
-                        return sessionDate >= twoWeeksAgo && sessionDate < oneWeekAgo;
-                    }).length;
-
-                    const dietPlansGrowth = lastWeekDietPlans > 0 ? 
-                        ((currentWeekDietPlans - lastWeekDietPlans) / lastWeekDietPlans) * 100 : 100;
-
-                    metrics.dietPlansCreated = {
-                        value: dietPlansData.length,
-                        growth: dietPlansGrowth,
-                        currentWeek: currentWeekDietPlans,
-                        lastWeek: lastWeekDietPlans
-                    };
-                    
                     // Calculate Referrals metrics
                     const referralsData = oneSignalData.filter(user => user.tags && user.tags.FFInvite === "true");
                     
@@ -548,7 +524,6 @@
                 },
                 accountsCreated: null,
                 formsCompleted: null,
-                dietPlansCreated: null,
                 referrals: null
             };
         }
@@ -624,16 +599,6 @@
                     </div>
                     <div class="metric-subtitle">
                         (This week: $${metrics.mrr.currentWeek.toLocaleString('en-US', {maximumFractionDigits: 0})} / Last week: $${metrics.mrr.lastWeek.toLocaleString('en-US', {maximumFractionDigits: 0})})
-                    </div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">Diet Plans Created</div>
-                    <div class="metric-value">${(metrics.dietPlansCreated ? metrics.dietPlansCreated.value : 0).toLocaleString('en-US')}</div>
-                    <div class="metric-growth ${metrics.dietPlansCreated.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
-                        ${metrics.dietPlansCreated.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.dietPlansCreated.growth).toFixed(1)}% WoW
-                    </div>
-                    <div class="metric-subtitle">
-                        (This week: ${metrics.dietPlansCreated.currentWeek} / Last week: ${metrics.dietPlansCreated.lastWeek})
                     </div>
                 </div>
                 <div class="metric-card">
