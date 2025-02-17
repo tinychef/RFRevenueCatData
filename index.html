@@ -238,6 +238,30 @@
                         lastWeek: lastWeekAccounts
                     };
                     
+                    // Calculate Form Completed metrics
+                    const formCompletedData = oneSignalData.filter(user => user.tags && user.tags.FormComplete === "true");
+                    
+                    // Calculate weekly numbers using first_session for timing
+                    const currentWeekForms = formCompletedData.filter(user => {
+                        const sessionDate = new Date(user.first_session);
+                        return sessionDate >= oneWeekAgo;
+                    }).length;
+
+                    const lastWeekForms = formCompletedData.filter(user => {
+                        const sessionDate = new Date(user.first_session);
+                        return sessionDate >= twoWeeksAgo && sessionDate < oneWeekAgo;
+                    }).length;
+
+                    const formsGrowth = lastWeekForms > 0 ? 
+                        ((currentWeekForms - lastWeekForms) / lastWeekForms) * 100 : 100;
+
+                    metrics.formsCompleted = {
+                        value: formCompletedData.length,
+                        growth: formsGrowth,
+                        currentWeek: currentWeekForms,
+                        lastWeek: lastWeekForms
+                    };
+                    
                     generateDashboard(revenueCatData, metrics);
                 } else {
                     throw new Error('Invalid data format');
@@ -413,7 +437,8 @@
                 newUsers: {
                     value: dataArray.length
                 },
-                accountsCreated: null
+                accountsCreated: null,
+                formsCompleted: null
             };
         }
 
@@ -488,6 +513,16 @@
                     </div>
                     <div class="metric-subtitle">
                         (This week: ${metrics.accountsCreated.currentWeek} / Last week: ${metrics.accountsCreated.lastWeek})
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Intake Forms Completed</div>
+                    <div class="metric-value">${(metrics.formsCompleted ? metrics.formsCompleted.value : 0).toLocaleString('en-US')}</div>
+                    <div class="metric-growth ${metrics.formsCompleted.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.formsCompleted.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.formsCompleted.growth).toFixed(1)}% WoW
+                    </div>
+                    <div class="metric-subtitle">
+                        (This week: ${metrics.formsCompleted.currentWeek} / Last week: ${metrics.formsCompleted.lastWeek})
                     </div>
                 </div>
             `;
