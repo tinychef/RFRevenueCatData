@@ -199,9 +199,9 @@
     <div id="errorContainer" style="display: none;">
         <div class="error-message">Unable to load dashboard data.</div>
         <div class="upload-container">
-            <input type="file" id="fileInput" accept=".json">
+        <input type="file" id="fileInput" accept=".json">
             <div class="upload-hint">Please upload a JSON file with the required data format</div>
-        </div>
+    </div>
     </div>
     
     <div class="metrics-container" id="kpiMetrics"></div>
@@ -210,7 +210,6 @@
     <div class="chart-container"><div id="subscription_chart"></div></div>
     <div class="chart-container"><div id="growth_chart"></div></div>
     <div class="chart-container"><div id="revenue_chart"></div></div>
-    <div class="chart-container"><div id="platform_chart"></div></div>
     <div class="chart-container"><div id="geo_chart"></div></div>
     <div class="chart-container"><div id="revenue_growth_chart"></div></div>
     <div class="chart-container"><div id="weekly_growth_chart"></div></div>
@@ -941,35 +940,6 @@
                 Plotly.newPlot('revenue_chart', [storeRevenueTrace], {
                     title: {
                         text: 'Revenue by App Stores',
-                        font: { color: brandColor }
-                    },
-                    showlegend: true,
-                    legend: {
-                        orientation: 'h',
-                        y: -0.1
-                    }
-                });
-
-                // Platform Distribution
-                const platformCounts = {};
-                filteredData.forEach(item => {
-                    platformCounts[item.last_seen_platform] = (platformCounts[item.last_seen_platform] || 0) + 1;
-                });
-
-                const platformTrace = {
-                    labels: Object.keys(platformCounts),
-                    values: Object.values(platformCounts),
-                    type: 'pie',
-                    name: 'Platform Distribution',
-                    marker: {
-                        colors: [brandColor, brandColorDark, brandColorLight]
-                    },
-                    textinfo: 'label+percent',
-                    hovertemplate: '%{label}<br>%{value} users<br>%{percent}<extra></extra>'
-                };
-                Plotly.newPlot('platform_chart', [platformTrace], {
-                    title: {
-                        text: 'Platform Distribution',
                         font: { color: brandColor }
                     },
                     showlegend: true,
