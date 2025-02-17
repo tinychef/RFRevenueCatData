@@ -163,33 +163,55 @@
             loadingDiv.style.display = 'block';
             errorContainer.style.display = 'none';
 
-            // Using the GitHub raw content URL
-            const dataUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/csvjson.json';
+            // Using the GitHub raw content URLs
+            const revenueCatUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/csvjson.json';
+            const unbounceUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/Unbounce_landing_page_leads_data.json';
 
-            fetch(dataUrl)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (!data || (Array.isArray(data) && data.length === 0)) {
-                        throw new Error('No data received');
-                    }
-                    if (validateData(data)) {
-                        generateDashboard(data);
-                    } else {
-                        throw new Error('Invalid data format');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    errorContainer.style.display = 'block';
-                })
-                .finally(() => {
-                    loadingDiv.style.display = 'none';
-                });
+            // Load both files
+            Promise.all([
+                fetch(revenueCatUrl).then(response => response.json()),
+                fetch(unbounceUrl).then(response => response.json())
+            ])
+            .then(([revenueCatData, unbounceData]) => {
+                if (validateData(revenueCatData)) {
+                    // Calculate WoW for Landing Page Signups
+                    const now = new Date();
+                    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+                    const currentWeekSignups = unbounceData.filter(lead => {
+                        const date = new Date(lead.date_submitted);
+                        return date >= oneWeekAgo;
+                    }).length;
+
+                    const lastWeekSignups = unbounceData.filter(lead => {
+                        const date = new Date(lead.date_submitted);
+                        return date >= twoWeeksAgo && date < oneWeekAgo;
+                    }).length;
+
+                    const signupsGrowth = lastWeekSignups > 0 ? 
+                        ((currentWeekSignups - lastWeekSignups) / lastWeekSignups) * 100 : 100;
+
+                    const metrics = calculateMetrics(revenueCatData);
+                    metrics.newUsers = {
+                        value: unbounceData.length,
+                        growth: signupsGrowth,
+                        currentWeek: currentWeekSignups,
+                        lastWeek: lastWeekSignups
+                    };
+                    
+                    generateDashboard(revenueCatData, metrics);
+                } else {
+                    throw new Error('Invalid data format');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorContainer.style.display = 'block';
+            })
+            .finally(() => {
+                loadingDiv.style.display = 'none';
+            });
         }
 
         // Load data when page loads
@@ -339,22 +361,28 @@
                     </div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-title">New Users</div>
+                    <div class="metric-title">Landing Page Signups</div>
                     <div class="metric-value">${metrics.newUsers.value.toLocaleString('en-US')}</div>
+                    <div class="metric-growth ${metrics.newUsers.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.newUsers.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.newUsers.growth).toFixed(1)}% WoW
+                    </div>
+                    <div class="metric-subtitle">
+                        (This week: ${metrics.newUsers.currentWeek} / Last week: ${metrics.newUsers.lastWeek})
+                    </div>
                 </div>
             `;
         }
 
         let dashboardData; // Store the original data globally
 
-        function generateDashboard(data) {
+        function generateDashboard(data, metrics) {
             dashboardData = Array.isArray(data) ? data : [data];
             
-            // Calculate metrics using full dataset
-            const currentMetrics = calculateMetrics(dashboardData);
+            // Use provided metrics or calculate new ones
+            const currentMetrics = metrics || calculateMetrics(dashboardData);
             updateKPIMetrics(currentMetrics);
 
-            // Update charts with full dataset
+            // Update charts with RevenueCat data
             updateCharts(dashboardData);
         }
 
