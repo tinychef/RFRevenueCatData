@@ -262,6 +262,30 @@
                         lastWeek: lastWeekForms
                     };
                     
+                    // Calculate Diet Plans Created metrics
+                    const dietPlansData = oneSignalData.filter(user => user.tags && user.tags.DietPlanGenerate === "true");
+                    
+                    // Calculate weekly numbers using first_session for timing
+                    const currentWeekDietPlans = dietPlansData.filter(user => {
+                        const sessionDate = new Date(user.first_session);
+                        return sessionDate >= oneWeekAgo;
+                    }).length;
+
+                    const lastWeekDietPlans = dietPlansData.filter(user => {
+                        const sessionDate = new Date(user.first_session);
+                        return sessionDate >= twoWeeksAgo && sessionDate < oneWeekAgo;
+                    }).length;
+
+                    const dietPlansGrowth = lastWeekDietPlans > 0 ? 
+                        ((currentWeekDietPlans - lastWeekDietPlans) / lastWeekDietPlans) * 100 : 100;
+
+                    metrics.dietPlansCreated = {
+                        value: dietPlansData.length,
+                        growth: dietPlansGrowth,
+                        currentWeek: currentWeekDietPlans,
+                        lastWeek: lastWeekDietPlans
+                    };
+                    
                     generateDashboard(revenueCatData, metrics);
                 } else {
                     throw new Error('Invalid data format');
@@ -438,7 +462,8 @@
                     value: dataArray.length
                 },
                 accountsCreated: null,
-                formsCompleted: null
+                formsCompleted: null,
+                dietPlansCreated: null
             };
         }
 
@@ -523,6 +548,16 @@
                     </div>
                     <div class="metric-subtitle">
                         (This week: ${metrics.formsCompleted.currentWeek} / Last week: ${metrics.formsCompleted.lastWeek})
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Diet Plans Created</div>
+                    <div class="metric-value">${(metrics.dietPlansCreated ? metrics.dietPlansCreated.value : 0).toLocaleString('en-US')}</div>
+                    <div class="metric-growth ${metrics.dietPlansCreated.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.dietPlansCreated.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.dietPlansCreated.growth).toFixed(1)}% WoW
+                    </div>
+                    <div class="metric-subtitle">
+                        (This week: ${metrics.dietPlansCreated.currentWeek} / Last week: ${metrics.dietPlansCreated.lastWeek})
                     </div>
                 </div>
             `;
