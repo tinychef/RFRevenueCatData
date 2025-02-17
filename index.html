@@ -268,6 +268,13 @@
             const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
+            // Get weekly data sets
+            const currentWeekData = dataArray.filter(item => new Date(parseInt(item.first_seen_at)) >= oneWeekAgo);
+            const lastWeekData = dataArray.filter(item => {
+                const date = new Date(parseInt(item.first_seen_at));
+                return date >= twoWeeksAgo && date < oneWeekAgo;
+            });
+
             // Calculate weekly revenue
             const currentWeekRevenue = dataArray
                 .filter(item => new Date(parseInt(item.first_seen_at)) >= oneWeekAgo)
@@ -316,6 +323,24 @@
                 return previous !== 0 ? ((current - previous) / previous) * 100 : 100;
             };
 
+            // Calculate weekly MRR
+            const currentWeekMRR = calculateMRR(currentWeekData);
+            const lastWeekMRR = calculateMRR(lastWeekData);
+
+            // Calculate weekly paid conversions
+            const currentWeekPaidConversions = currentWeekData.filter(item => parseFloat(item.total_spent) > 0).length;
+            const lastWeekPaidConversions = lastWeekData.filter(item => parseFloat(item.total_spent) > 0).length;
+
+            // Calculate weekly conversion rates
+            const currentWeekConversionRate = currentWeekPaidConversions > 0 ? 
+                (currentWeekPaidConversions / currentWeekData.length) * 100 : 0;
+            const lastWeekConversionRate = lastWeekPaidConversions > 0 ? 
+                (lastWeekPaidConversions / lastWeekData.length) * 100 : 0;
+
+            // Calculate weekly trials
+            const currentWeekTrials = currentWeekData.length;
+            const lastWeekTrials = lastWeekData.length;
+
             return {
                 revenue: {
                     value: totalRevenue,
@@ -325,19 +350,27 @@
                 },
                 mrr: {
                     value: currentMRR,
-                    growth: calculateGrowth(currentMRR, lastMRR)
+                    growth: calculateGrowth(currentWeekMRR, lastWeekMRR),
+                    currentWeek: currentWeekMRR,
+                    lastWeek: lastWeekMRR
                 },
                 totalPaidConversions: {
                     value: totalPaidConversions,
-                    growth: 0
+                    growth: calculateGrowth(currentWeekPaidConversions, lastWeekPaidConversions),
+                    currentWeek: currentWeekPaidConversions,
+                    lastWeek: lastWeekPaidConversions
                 },
                 conversion: {
                     value: conversionRate,
-                    growth: 0
+                    growth: calculateGrowth(currentWeekConversionRate, lastWeekConversionRate),
+                    currentWeek: currentWeekConversionRate,
+                    lastWeek: lastWeekConversionRate
                 },
                 totalTrials: {
                     value: totalTrials,
-                    growth: calculateGrowth(currentMonthData.length, lastMonthData.length)
+                    growth: calculateGrowth(currentWeekTrials, lastWeekTrials),
+                    currentWeek: currentWeekTrials,
+                    lastWeek: lastWeekTrials
                 },
                 newUsers: {
                     value: dataArray.length
@@ -364,21 +397,38 @@
                     <div class="metric-growth ${metrics.mrr.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
                         ${metrics.mrr.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.mrr.growth).toFixed(1)}% WoW
                     </div>
+                    <div class="metric-subtitle">
+                        (This week: $${metrics.mrr.currentWeek.toLocaleString('en-US', {maximumFractionDigits: 0})} / Last week: $${metrics.mrr.lastWeek.toLocaleString('en-US', {maximumFractionDigits: 0})})
+                    </div>
                 </div>
                 <div class="metric-card">
                     <div class="metric-title">Total Paid Conversions</div>
                     <div class="metric-value">${metrics.totalPaidConversions.value.toLocaleString('en-US')}</div>
+                    <div class="metric-growth ${metrics.totalPaidConversions.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.totalPaidConversions.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.totalPaidConversions.growth).toFixed(1)}% WoW
+                    </div>
+                    <div class="metric-subtitle">
+                        (This week: ${metrics.totalPaidConversions.currentWeek} / Last week: ${metrics.totalPaidConversions.lastWeek})
+                    </div>
                 </div>
                 <div class="metric-card">
                     <div class="metric-title">Trial to Paid Conversion</div>
                     <div class="metric-value">${metrics.conversion.value.toFixed(1)}%</div>
-                    <div class="metric-subtitle">(${metrics.totalPaidConversions.value} / ${metrics.totalTrials.value})</div>
+                    <div class="metric-growth ${metrics.conversion.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.conversion.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.conversion.growth).toFixed(1)}% WoW
+                    </div>
+                    <div class="metric-subtitle">
+                        (This week: ${metrics.conversion.currentWeek.toFixed(1)}% / Last week: ${metrics.conversion.lastWeek.toFixed(1)}%)
+                    </div>
                 </div>
                 <div class="metric-card">
                     <div class="metric-title">Total Trials</div>
                     <div class="metric-value">${metrics.totalTrials.value.toLocaleString('en-US')}</div>
                     <div class="metric-growth ${metrics.totalTrials.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
                         ${metrics.totalTrials.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.totalTrials.growth).toFixed(1)}% WoW
+                    </div>
+                    <div class="metric-subtitle">
+                        (This week: ${metrics.totalTrials.currentWeek} / Last week: ${metrics.totalTrials.lastWeek})
                     </div>
                 </div>
                 <div class="metric-card">
