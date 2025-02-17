@@ -128,6 +128,68 @@
         #errorContainer {
             margin-bottom: 30px;
         }
+        .funnel-container {
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+        }
+        .funnel-step {
+            background: white;
+            color: ${brandColor};
+            padding: 15px;
+            margin: 10px auto;
+            text-align: center;
+            border: 2px solid ${brandColor};
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .funnel-step:nth-child(1) { width: 100%; }
+        .funnel-step:nth-child(3) { width: 90%; }
+        .funnel-step:nth-child(5) { width: 80%; }
+        .funnel-step:nth-child(7) { width: 70%; }
+        .funnel-step:nth-child(9) { width: 60%; }
+        .funnel-arrow {
+            text-align: center;
+            margin: 10px 0;
+            position: relative;
+        }
+        .conversion-rate {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            margin-top: 5px;
+        }
+        .conversion-high { background-color: #2ecc71; }
+        .conversion-medium { background-color: #f1c40f; }
+        .conversion-low { background-color: #e74c3c; }
+        .funnel-step .value {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .funnel-step .label {
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        .wow-change {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .growth-positive {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+        .growth-negative {
+            color: #e74c3c;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -144,6 +206,7 @@
     
     <div class="metrics-container" id="kpiMetrics"></div>
     
+    <div class="chart-container"><div id="funnel_chart"></div></div>
     <div class="chart-container"><div id="subscription_chart"></div></div>
     <div class="chart-container"><div id="growth_chart"></div></div>
     <div class="chart-container"><div id="revenue_chart"></div></div>
@@ -607,16 +670,134 @@
             const currentMetrics = metrics || calculateMetrics(dashboardData);
             updateKPIMetrics(currentMetrics);
 
-            // Update charts with RevenueCat data
-            updateCharts(dashboardData);
+            // Update charts with RevenueCat data and metrics
+            updateCharts(dashboardData, currentMetrics);
         }
 
-        function updateCharts(filteredData) {
+        function updateCharts(filteredData, metrics) {
             const brandColor = '#f57f2b';
             const brandColorLight = 'rgb(255, 245, 235)';
             const brandColorDark = '#d16418';
 
             try {
+                console.log("Starting updateCharts with metrics:", metrics);
+
+                // Funnel Chart
+                const styles = `
+                    <style>
+                        .funnel-container {
+                            padding: 20px;
+                            max-width: 800px;
+                            margin: 0 auto;
+                        }
+                        .funnel-step {
+                            background: white;
+                            color: ${brandColor};
+                            padding: 15px;
+                            margin: 10px auto;
+                            text-align: center;
+                            border: 2px solid ${brandColor};
+                            width: 100%;
+                            box-sizing: border-box;
+                        }
+                        .funnel-step:nth-child(1) { width: 100%; }
+                        .funnel-step:nth-child(3) { width: 90%; }
+                        .funnel-step:nth-child(5) { width: 80%; }
+                        .funnel-step:nth-child(7) { width: 70%; }
+                        .funnel-step:nth-child(9) { width: 60%; }
+                        .funnel-arrow {
+                            text-align: center;
+                            margin: 10px 0;
+                            position: relative;
+                        }
+                        .conversion-rate {
+                            display: inline-block;
+                            padding: 2px 8px;
+                            border-radius: 4px;
+                            font-size: 14px;
+                            font-weight: bold;
+                            color: white;
+                            margin-top: 5px;
+                        }
+                        .conversion-high { background-color: #2ecc71; }
+                        .conversion-medium { background-color: #f1c40f; }
+                        .conversion-low { background-color: #e74c3c; }
+                        .funnel-step .value {
+                            font-size: 24px;
+                            font-weight: bold;
+                            margin-bottom: 5px;
+                        }
+                        .funnel-step .label {
+                            font-size: 16px;
+                            margin-bottom: 5px;
+                        }
+                        .wow-change {
+                            font-size: 12px;
+                            margin-top: 5px;
+                        }
+                    </style>
+                `;
+
+                const funnelHTML = styles + `
+                    <div class="funnel-container">
+                        <div class="funnel-step">
+                            <div class="value">${metrics.newUsers.value.toLocaleString()}</div>
+                            <div class="label">Landing Page Signups</div>
+                            <div class="wow-change ${metrics.newUsers.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                                ${metrics.newUsers.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.newUsers.growth).toFixed(1)}% WoW
+                            </div>
+                        </div>
+                        <div class="funnel-arrow">
+                            ↓<br>
+                            <span class="conversion-rate conversion-high">83.74%</span>
+                        </div>
+                        <div class="funnel-step">
+                            <div class="value">${metrics.accountsCreated.value.toLocaleString()}</div>
+                            <div class="label">Accounts Created</div>
+                            <div class="wow-change ${metrics.accountsCreated.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                                ${metrics.accountsCreated.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.accountsCreated.growth).toFixed(1)}% WoW
+                            </div>
+                        </div>
+                        <div class="funnel-arrow">
+                            ↓<br>
+                            <span class="conversion-rate conversion-high">87.81%</span>
+                        </div>
+                        <div class="funnel-step">
+                            <div class="value">${metrics.formsCompleted.value.toLocaleString()}</div>
+                            <div class="label">Intake Forms Completed</div>
+                            <div class="wow-change ${metrics.formsCompleted.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                                ${metrics.formsCompleted.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.formsCompleted.growth).toFixed(1)}% WoW
+                            </div>
+                        </div>
+                        <div class="funnel-arrow">
+                            ↓<br>
+                            <span class="conversion-rate conversion-low">1.69%</span>
+                        </div>
+                        <div class="funnel-step">
+                            <div class="value">${metrics.totalTrials.value.toLocaleString()}</div>
+                            <div class="label">Total Trials</div>
+                            <div class="wow-change ${metrics.totalTrials.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                                ${metrics.totalTrials.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.totalTrials.growth).toFixed(1)}% WoW
+                            </div>
+                        </div>
+                        <div class="funnel-arrow">
+                            ↓<br>
+                            <span class="conversion-rate conversion-high">63.4%</span>
+                        </div>
+                        <div class="funnel-step">
+                            <div class="value">${metrics.totalPaidConversions.value.toLocaleString()}</div>
+                            <div class="label">Total Paid Conversions</div>
+                            <div class="wow-change ${metrics.totalPaidConversions.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                                ${metrics.totalPaidConversions.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.totalPaidConversions.growth).toFixed(1)}% WoW
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('funnel_chart').innerHTML = funnelHTML;
+
+                // Continue with other charts
+                console.log("Starting other charts...");
+
                 // Subscription Status Distribution
                 const statusCounts = {};
                 filteredData.forEach(item => {
