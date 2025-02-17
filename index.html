@@ -635,6 +635,19 @@
             try {
                 console.log("Starting updateCharts with metrics:", metrics);
 
+                // Calculate funnel conversion rates
+                const landingToAccounts = metrics.accountsCreated.value / metrics.newUsers.value * 100;
+                const accountsToForms = metrics.formsCompleted.value / metrics.accountsCreated.value * 100;
+                const formsToTrials = metrics.totalTrials.value / metrics.formsCompleted.value * 100;
+                const trialsToPaid = metrics.totalPaidConversions.value / metrics.totalTrials.value * 100;
+
+                // Helper function to determine conversion rate class
+                const getConversionClass = (rate) => {
+                    if (rate >= 60) return 'conversion-high';
+                    if (rate >= 30) return 'conversion-medium';
+                    return 'conversion-low';
+                };
+
                 // Funnel Chart
                 const funnelHTML = `
                     <div class="funnel-container">
@@ -647,7 +660,7 @@
                         </div>
                         <div class="funnel-arrow">
                             ↓<br>
-                            <span class="conversion-rate conversion-high">83.74%</span>
+                            <span class="conversion-rate ${getConversionClass(landingToAccounts)}">${landingToAccounts.toFixed(1)}%</span>
                         </div>
                         <div class="funnel-step">
                             <div class="value">${metrics.accountsCreated.value.toLocaleString()}</div>
@@ -658,7 +671,7 @@
                         </div>
                         <div class="funnel-arrow">
                             ↓<br>
-                            <span class="conversion-rate conversion-high">87.81%</span>
+                            <span class="conversion-rate ${getConversionClass(accountsToForms)}">${accountsToForms.toFixed(1)}%</span>
                         </div>
                         <div class="funnel-step">
                             <div class="value">${metrics.formsCompleted.value.toLocaleString()}</div>
@@ -669,7 +682,7 @@
                         </div>
                         <div class="funnel-arrow">
                             ↓<br>
-                            <span class="conversion-rate conversion-low">1.69%</span>
+                            <span class="conversion-rate ${getConversionClass(formsToTrials)}">${formsToTrials.toFixed(1)}%</span>
                         </div>
                         <div class="funnel-step">
                             <div class="value">${metrics.totalTrials.value.toLocaleString()}</div>
@@ -680,7 +693,7 @@
                         </div>
                         <div class="funnel-arrow">
                             ↓<br>
-                            <span class="conversion-rate conversion-high">63.4%</span>
+                            <span class="conversion-rate ${getConversionClass(trialsToPaid)}">${trialsToPaid.toFixed(1)}%</span>
                         </div>
                         <div class="funnel-step">
                             <div class="value">${metrics.totalPaidConversions.value.toLocaleString()}</div>
