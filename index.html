@@ -6,6 +6,9 @@
     <title>Ryan Fernando App Monetization Analytics</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
+        :root {
+            --brand-color: #f57f2b;
+        }
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
@@ -132,18 +135,14 @@
             padding: 20px;
             max-width: 800px;
             margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0;
         }
         .funnel-step {
             background: white;
-            color: ${brandColor};
+            color: var(--brand-color);
             padding: 15px;
             margin: 10px auto;
             text-align: center;
-            border: 2px solid ${brandColor};
+            border: 2px solid var(--brand-color);
             width: 100%;
             box-sizing: border-box;
         }
@@ -672,62 +671,7 @@
                 console.log("Starting updateCharts with metrics:", metrics);
 
                 // Funnel Chart
-                const styles = `
-                    <style>
-                        .funnel-container {
-                            padding: 20px;
-                            max-width: 800px;
-                            margin: 0 auto;
-                        }
-                        .funnel-step {
-                            background: white;
-                            color: ${brandColor};
-                            padding: 15px;
-                            margin: 10px auto;
-                            text-align: center;
-                            border: 2px solid ${brandColor};
-                            width: 100%;
-                            box-sizing: border-box;
-                        }
-                        .funnel-step:nth-child(1) { width: 100%; }
-                        .funnel-step:nth-child(3) { width: 90%; }
-                        .funnel-step:nth-child(5) { width: 80%; }
-                        .funnel-step:nth-child(7) { width: 70%; }
-                        .funnel-step:nth-child(9) { width: 60%; }
-                        .funnel-arrow {
-                            text-align: center;
-                            margin: 10px 0;
-                            position: relative;
-                        }
-                        .conversion-rate {
-                            display: inline-block;
-                            padding: 2px 8px;
-                            border-radius: 4px;
-                            font-size: 14px;
-                            font-weight: bold;
-                            color: white;
-                            margin-top: 5px;
-                        }
-                        .conversion-high { background-color: #2ecc71; }
-                        .conversion-medium { background-color: #f1c40f; }
-                        .conversion-low { background-color: #e74c3c; }
-                        .funnel-step .value {
-                            font-size: 24px;
-                            font-weight: bold;
-                            margin-bottom: 5px;
-                        }
-                        .funnel-step .label {
-                            font-size: 16px;
-                            margin-bottom: 5px;
-                        }
-                        .wow-change {
-                            font-size: 12px;
-                            margin-top: 5px;
-                        }
-                    </style>
-                `;
-
-                const funnelHTML = styles + `
+                const funnelHTML = `
                     <div class="funnel-container">
                         <div class="funnel-step">
                             <div class="value">${metrics.newUsers.value.toLocaleString()}</div>
