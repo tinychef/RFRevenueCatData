@@ -264,6 +264,22 @@
             const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
             const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
 
+            // Add weekly date ranges
+            const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+            // Calculate weekly revenue
+            const currentWeekRevenue = dataArray
+                .filter(item => new Date(parseInt(item.first_seen_at)) >= oneWeekAgo)
+                .reduce((sum, item) => sum + (parseFloat(item.total_spent) || 0), 0);
+
+            const lastWeekRevenue = dataArray
+                .filter(item => {
+                    const date = new Date(parseInt(item.first_seen_at));
+                    return date >= twoWeeksAgo && date < oneWeekAgo;
+                })
+                .reduce((sum, item) => sum + (parseFloat(item.total_spent) || 0), 0);
+
             // Calculate total metrics (unfiltered)
             const totalRevenue = dataArray.reduce((sum, item) => sum + (parseFloat(item.total_spent) || 0), 0);
             const totalTrials = dataArray.length;
@@ -303,7 +319,9 @@
             return {
                 revenue: {
                     value: totalRevenue,
-                    growth: calculateGrowth(currentPeriodRevenue, lastPeriodRevenue)
+                    growth: calculateGrowth(currentWeekRevenue, lastWeekRevenue),
+                    currentWeek: currentWeekRevenue,
+                    lastWeek: lastWeekRevenue
                 },
                 mrr: {
                     value: currentMRR,
@@ -335,6 +353,9 @@
                     <div class="metric-value">$${metrics.revenue.value.toLocaleString('en-US', {maximumFractionDigits: 0})}</div>
                     <div class="metric-growth ${metrics.revenue.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
                         ${metrics.revenue.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.revenue.growth).toFixed(1)}% WoW
+                    </div>
+                    <div class="metric-subtitle">
+                        (This week: $${metrics.revenue.currentWeek.toLocaleString('en-US', {maximumFractionDigits: 0})} / Last week: $${metrics.revenue.lastWeek.toLocaleString('en-US', {maximumFractionDigits: 0})})
                     </div>
                 </div>
                 <div class="metric-card">
