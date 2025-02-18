@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accounts Created - Detailed View</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        :root {
+            --brand-color: #f57f2b;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+        }
+        h2 {
+            color: var(--brand-color);
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: auto;
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid var(--brand-color);
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(245, 127, 43, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h2>Accounts Created - Daily Trend</h2>
+    <div class="chart-container">
+        <div id="accounts_trend"></div>
+    </div>
+
+    <script>
+        async function loadData() {
+            try {
+                const oneSignalUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/OneSignal_Data_on_user_behaviour.json';
+                const response = await fetch(oneSignalUrl);
+                const data = await response.json();
+
+                // Filter accounts created
+                const accountsData = data.filter(user => user.tags && user.tags.account_created === "true");
+
+                // Group by date
+                const dailyData = accountsData.reduce((acc, user) => {
+                    const date = new Date(user.first_session);
+                    const dateStr = date.toISOString().split('T')[0];
+                    acc[dateStr] = (acc[dateStr] || 0) + 1;
+                    return acc;
+                }, {});
+
+                // Sort dates and prepare plot data
+                const dates = Object.keys(dailyData).sort();
+                const counts = dates.map(date => dailyData[date]);
+
+                // Calculate cumulative total
+                let cumulative = 0;
+                const cumulativeCounts = counts.map(count => cumulative += count);
+
+                // Create the plot
+                const dailyTrace = {
+                    x: dates,
+                    y: counts,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Daily Accounts',
+                    line: {
+                        color: '#f57f2b',
+                        width: 2
+                    },
+                    marker: {
+                        size: 6
+                    }
+                };
+
+                const cumulativeTrace = {
+                    x: dates,
+                    y: cumulativeCounts,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Total Accounts',
+                    line: {
+                        color: '#d16418',
+                        width: 2,
+                        dash: 'dot'
+                    },
+                    yaxis: 'y2'
+                };
+
+                const layout = {
+                    title: 'Daily Accounts Created',
+                    xaxis: {
+                        title: 'Date',
+                        tickangle: -45
+                    },
+                    yaxis: {
+                        title: 'Daily Accounts',
+                        titlefont: {color: '#f57f2b'},
+                        tickfont: {color: '#f57f2b'}
+                    },
+                    yaxis2: {
+                        title: 'Total Accounts',
+                        titlefont: {color: '#d16418'},
+                        tickfont: {color: '#d16418'},
+                        overlaying: 'y',
+                        side: 'right'
+                    },
+                    showlegend: true,
+                    legend: {
+                        x: 0.5,
+                        y: 1.1,
+                        orientation: 'h',
+                        xanchor: 'center'
+                    }
+                };
+
+                Plotly.newPlot('accounts_trend', [dailyTrace, cumulativeTrace], layout);
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        // Load data when page loads
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html> 

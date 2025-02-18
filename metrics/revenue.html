@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revenue - Detailed View</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        :root {
+            --brand-color: #f57f2b;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+        }
+        h2 {
+            color: var(--brand-color);
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: auto;
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid var(--brand-color);
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(245, 127, 43, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h2>Revenue - Daily Trend</h2>
+    <div class="chart-container">
+        <div id="revenue_trend"></div>
+    </div>
+
+    <script>
+        async function loadData() {
+            try {
+                const revenueCatUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/csvjson.json';
+                const response = await fetch(revenueCatUrl);
+                const data = await response.json();
+
+                // Group by date
+                const dailyData = data.reduce((acc, item) => {
+                    const date = new Date(parseInt(item.first_seen_at));
+                    const dateStr = date.toISOString().split('T')[0];
+                    const revenue = parseFloat(item.total_spent) || 0;
+                    acc[dateStr] = (acc[dateStr] || 0) + revenue;
+                    return acc;
+                }, {});
+
+                // Sort dates and prepare plot data
+                const dates = Object.keys(dailyData).sort();
+                const revenues = dates.map(date => dailyData[date]);
+
+                // Calculate cumulative total
+                let cumulative = 0;
+                const cumulativeRevenue = revenues.map(rev => cumulative += rev);
+
+                // Create the plot
+                const dailyTrace = {
+                    x: dates,
+                    y: revenues,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Daily Revenue',
+                    line: {
+                        color: '#f57f2b',
+                        width: 2
+                    },
+                    marker: {
+                        size: 6
+                    },
+                    hovertemplate: '$%{y:.2f}<extra></extra>'
+                };
+
+                const cumulativeTrace = {
+                    x: dates,
+                    y: cumulativeRevenue,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Total Revenue',
+                    line: {
+                        color: '#d16418',
+                        width: 2,
+                        dash: 'dot'
+                    },
+                    yaxis: 'y2',
+                    hovertemplate: '$%{y:.2f}<extra></extra>'
+                };
+
+                const layout = {
+                    title: 'Daily Revenue',
+                    xaxis: {
+                        title: 'Date',
+                        tickangle: -45
+                    },
+                    yaxis: {
+                        title: 'Daily Revenue ($)',
+                        titlefont: {color: '#f57f2b'},
+                        tickfont: {color: '#f57f2b'},
+                        tickprefix: '$'
+                    },
+                    yaxis2: {
+                        title: 'Total Revenue ($)',
+                        titlefont: {color: '#d16418'},
+                        tickfont: {color: '#d16418'},
+                        overlaying: 'y',
+                        side: 'right',
+                        tickprefix: '$'
+                    },
+                    showlegend: true,
+                    legend: {
+                        x: 0.5,
+                        y: 1.1,
+                        orientation: 'h',
+                        xanchor: 'center'
+                    }
+                };
+
+                Plotly.newPlot('revenue_trend', [dailyTrace, cumulativeTrace], layout);
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        // Load data when page loads
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html> 

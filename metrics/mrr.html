@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monthly Recurring Revenue - Detailed View</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        :root {
+            --brand-color: #f57f2b;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+        }
+        h2 {
+            color: var(--brand-color);
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: auto;
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid var(--brand-color);
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(245, 127, 43, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h2>Monthly Recurring Revenue - Daily Trend</h2>
+    <div class="chart-container">
+        <div id="mrr_trend"></div>
+    </div>
+
+    <script>
+        async function loadData() {
+            try {
+                const revenueCatUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/csvjson.json';
+                const response = await fetch(revenueCatUrl);
+                const data = await response.json();
+
+                // Calculate MRR for each subscription
+                function calculateMonthlyRate(item) {
+                    if (item.status === 'active' && parseFloat(item.total_spent) > 0) {
+                        const monthlyRate = parseFloat(item.total_spent) / 
+                            (parseInt(item.subscription_duration_months) || 1);
+                        return monthlyRate;
+                    }
+                    return 0;
+                }
+
+                // Group by date
+                const dailyData = data.reduce((acc, item) => {
+                    const date = new Date(parseInt(item.first_seen_at));
+                    const dateStr = date.toISOString().split('T')[0];
+                    const mrr = calculateMonthlyRate(item);
+                    acc[dateStr] = (acc[dateStr] || 0) + mrr;
+                    return acc;
+                }, {});
+
+                // Sort dates and prepare plot data
+                const dates = Object.keys(dailyData).sort();
+                const mrrValues = dates.map(date => dailyData[date]);
+
+                // Calculate cumulative total
+                let cumulative = 0;
+                const cumulativeMRR = mrrValues.map(mrr => cumulative += mrr);
+
+                // Create the plot
+                const dailyTrace = {
+                    x: dates,
+                    y: mrrValues,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Daily MRR',
+                    line: {
+                        color: '#f57f2b',
+                        width: 2
+                    },
+                    marker: {
+                        size: 6
+                    },
+                    hovertemplate: '$%{y:.2f}<extra></extra>'
+                };
+
+                const cumulativeTrace = {
+                    x: dates,
+                    y: cumulativeMRR,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'Total MRR',
+                    line: {
+                        color: '#d16418',
+                        width: 2,
+                        dash: 'dot'
+                    },
+                    yaxis: 'y2',
+                    hovertemplate: '$%{y:.2f}<extra></extra>'
+                };
+
+                const layout = {
+                    title: 'Monthly Recurring Revenue Trend',
+                    xaxis: {
+                        title: 'Date',
+                        tickangle: -45
+                    },
+                    yaxis: {
+                        title: 'Daily MRR ($)',
+                        titlefont: {color: '#f57f2b'},
+                        tickfont: {color: '#f57f2b'},
+                        tickprefix: '$'
+                    },
+                    yaxis2: {
+                        title: 'Total MRR ($)',
+                        titlefont: {color: '#d16418'},
+                        tickfont: {color: '#d16418'},
+                        overlaying: 'y',
+                        side: 'right',
+                        tickprefix: '$'
+                    },
+                    showlegend: true,
+                    legend: {
+                        x: 0.5,
+                        y: 1.1,
+                        orientation: 'h',
+                        xanchor: 'center'
+                    }
+                };
+
+                Plotly.newPlot('mrr_trend', [dailyTrace, cumulativeTrace], layout);
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        // Load data when page loads
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html> 

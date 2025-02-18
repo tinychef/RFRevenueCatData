@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ryan Fernando App Monetization Analytics</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root {
             --brand-color: #f57f2b;
@@ -73,12 +74,28 @@
             margin-bottom: 30px;
         }
         .metric-card {
+            position: relative;
             background: white;
             padding: 15px;
             border-radius: 8px;
             border: 1px solid #f57f2b;
             box-shadow: 0 2px 4px rgba(245, 127, 43, 0.1);
             min-width: 0;
+            transition: transform 0.2s;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+        }
+        .chart-icon {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: var(--brand-color);
+            opacity: 0.7;
+            font-size: 14px;
+        }
+        .metric-card:hover .chart-icon {
+            opacity: 1;
         }
         .metric-title {
             color: #666;
@@ -531,7 +548,8 @@
         function updateKPIMetrics(metrics) {
             const metricsContainer = document.getElementById('kpiMetrics');
             metricsContainer.innerHTML = `
-                <div class="metric-card">
+                <div class="metric-card" onclick="window.open('metrics/signups.html', '_blank')" style="cursor: pointer">
+                    <i class="fas fa-chart-line chart-icon"></i>
                     <div class="metric-title">Landing Page Signups</div>
                     <div class="metric-value">${metrics.newUsers.value.toLocaleString('en-US')}</div>
                     <div class="metric-growth ${metrics.newUsers.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
@@ -541,7 +559,8 @@
                         (This week: ${metrics.newUsers.currentWeek} / Last week: ${metrics.newUsers.lastWeek})
                     </div>
                 </div>
-                <div class="metric-card">
+                <div class="metric-card" onclick="window.open('metrics/accounts.html', '_blank')" style="cursor: pointer">
+                    <i class="fas fa-chart-line chart-icon"></i>
                     <div class="metric-title">Accounts Created</div>
                     <div class="metric-value">${(metrics.accountsCreated ? metrics.accountsCreated.value : 0).toLocaleString('en-US')}</div>
                     <div class="metric-growth ${metrics.accountsCreated.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
@@ -551,7 +570,8 @@
                         (This week: ${metrics.accountsCreated.currentWeek} / Last week: ${metrics.accountsCreated.lastWeek})
                     </div>
                 </div>
-                <div class="metric-card">
+                <div class="metric-card" onclick="window.open('metrics/forms.html', '_blank')" style="cursor: pointer">
+                    <i class="fas fa-chart-line chart-icon"></i>
                     <div class="metric-title">Intake Forms Completed</div>
                     <div class="metric-value">${(metrics.formsCompleted ? metrics.formsCompleted.value : 0).toLocaleString('en-US')}</div>
                     <div class="metric-growth ${metrics.formsCompleted.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
@@ -561,7 +581,8 @@
                         (This week: ${metrics.formsCompleted.currentWeek} / Last week: ${metrics.formsCompleted.lastWeek})
                     </div>
                 </div>
-                <div class="metric-card">
+                <div class="metric-card" onclick="window.open('metrics/trials.html', '_blank')" style="cursor: pointer">
+                    <i class="fas fa-chart-line chart-icon"></i>
                     <div class="metric-title">Total Trials</div>
                     <div class="metric-value">${metrics.totalTrials.value.toLocaleString('en-US')}</div>
                     <div class="metric-growth ${metrics.totalTrials.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
@@ -571,7 +592,8 @@
                         (This week: ${metrics.totalTrials.currentWeek} / Last week: ${metrics.totalTrials.lastWeek})
                     </div>
                 </div>
-                <div class="metric-card">
+                <div class="metric-card" onclick="window.open('metrics/conversions.html', '_blank')" style="cursor: pointer">
+                    <i class="fas fa-chart-line chart-icon"></i>
                     <div class="metric-title">Total Paid Conversions</div>
                     <div class="metric-value">${metrics.totalPaidConversions.value.toLocaleString('en-US')}</div>
                     <div class="metric-growth ${metrics.totalPaidConversions.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
@@ -581,7 +603,8 @@
                         (This week: ${metrics.totalPaidConversions.currentWeek} / Last week: ${metrics.totalPaidConversions.lastWeek})
                     </div>
                 </div>
-                <div class="metric-card">
+                <div class="metric-card" onclick="window.open('metrics/revenue.html', '_blank')" style="cursor: pointer">
+                    <i class="fas fa-chart-line chart-icon"></i>
                     <div class="metric-title">Total Revenue</div>
                     <div class="metric-value">$${metrics.revenue.value.toLocaleString('en-US', {maximumFractionDigits: 0})}</div>
                     <div class="metric-growth ${metrics.revenue.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
@@ -591,7 +614,8 @@
                         (This week: $${metrics.revenue.currentWeek.toLocaleString('en-US', {maximumFractionDigits: 0})} / Last week: $${metrics.revenue.lastWeek.toLocaleString('en-US', {maximumFractionDigits: 0})})
                     </div>
                 </div>
-                <div class="metric-card">
+                <div class="metric-card" onclick="window.open('metrics/mrr.html', '_blank')" style="cursor: pointer">
+                    <i class="fas fa-chart-line chart-icon"></i>
                     <div class="metric-title">Monthly Recurring Revenue</div>
                     <div class="metric-value">$${metrics.mrr.value.toLocaleString('en-US', {maximumFractionDigits: 0})}</div>
                     <div class="metric-growth ${metrics.mrr.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
@@ -601,7 +625,8 @@
                         (This week: $${metrics.mrr.currentWeek.toLocaleString('en-US', {maximumFractionDigits: 0})} / Last week: $${metrics.mrr.lastWeek.toLocaleString('en-US', {maximumFractionDigits: 0})})
                     </div>
                 </div>
-                <div class="metric-card">
+                <div class="metric-card" onclick="window.open('metrics/referrals.html', '_blank')" style="cursor: pointer">
+                    <i class="fas fa-chart-line chart-icon"></i>
                     <div class="metric-title">Referrals</div>
                     <div class="metric-value">${(metrics.referrals ? metrics.referrals.value : 0).toLocaleString('en-US')}</div>
                     <div class="metric-growth ${metrics.referrals.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
