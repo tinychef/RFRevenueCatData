@@ -241,21 +241,30 @@
             loadingDiv.style.display = 'block';
             errorContainer.style.display = 'none';
 
-            // Using the GitHub raw content URLs
+            // Using GitHub URLs for all data
             const revenueCatUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/csvjson.json';
             const unbounceUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/Unbounce_landing_page_leads_data.json';
-            const oneSignalUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/OneSignal_Data_on_user_behaviour.json';
+            
+            // Load split OneSignal files from GitHub
+            const oneSignalUrls = [
+                'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/OneSignal_Data_part1.json',
+                'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/OneSignal_Data_part2.json',
+                'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/OneSignal_Data_part3.json',
+                'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/OneSignal_Data_part4.json'
+            ];
 
-            // Load all files
+            // Load all data from GitHub
             Promise.all([
                 fetch(revenueCatUrl).then(response => response.json()),
                 fetch(unbounceUrl).then(response => response.json()),
-                fetch(oneSignalUrl)
-                    .then(response => response.json())
-                    .catch(error => {
-                        document.getElementById('errorMessage').innerHTML = 'Note: OneSignal data failed to load. Account Created metrics may be inaccurate.';
-                        return []; // Return empty array but continue loading
-                    })
+                Promise.all(oneSignalUrls.map(url => 
+                    fetch(url)
+                        .then(response => response.json())
+                        .catch(error => {
+                            console.error('Error loading OneSignal part:', error);
+                            return [];
+                        })
+                )).then(parts => parts.flat())
             ])
             .then(([revenueCatData, unbounceData, oneSignalData = []]) => {
                 if (validateData(revenueCatData)) {
