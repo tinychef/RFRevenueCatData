@@ -553,6 +553,60 @@
             const paidUsersMomChange = lastMonthPaidUsers > 0 ? 
                 ((thisMonthPaidUsers - lastMonthPaidUsers) / lastMonthPaidUsers) * 100 : 0;
 
+            // Calculate monthly and quarterly paid users
+            const monthlyUsers = dataArray.filter(item => {
+                return item.latest_product && 
+                       item.latest_product.startsWith('rf_999') && 
+                       parseFloat(item.total_spent) > 0;
+            }).length;
+
+            const quarterlyUsers = dataArray.filter(item => {
+                return item.latest_product && 
+                       item.latest_product.startsWith('rf_2499') && 
+                       parseFloat(item.total_spent) > 0;
+            }).length;
+
+            // Calculate this month and last month data for both types
+            const thisMonthMonthly = currentMonthData.filter(item => 
+                item.latest_product && item.latest_product.startsWith('rf_999')
+            ).length;
+
+            const lastMonthMonthly = lastMonthData.filter(item => 
+                item.latest_product && item.latest_product.startsWith('rf_999')
+            ).length;
+
+            const thisMonthQuarterly = currentMonthData.filter(item => 
+                item.latest_product && item.latest_product.startsWith('rf_2499')
+            ).length;
+
+            const lastMonthQuarterly = lastMonthData.filter(item => 
+                item.latest_product && item.latest_product.startsWith('rf_2499')
+            ).length;
+
+            // Calculate MoM changes
+            const monthlyMoMChange = lastMonthMonthly > 0 ? 
+                ((thisMonthMonthly - lastMonthMonthly) / lastMonthMonthly) * 100 : 0;
+
+            const quarterlyMoMChange = lastMonthQuarterly > 0 ? 
+                ((thisMonthQuarterly - lastMonthQuarterly) / lastMonthQuarterly) * 100 : 0;
+
+            // Calculate week over week growth for both
+            const currentWeekMonthly = currentWeekData.filter(item => 
+                item.latest_product && item.latest_product.startsWith('rf_999')
+            ).length;
+
+            const lastWeekMonthly = lastWeekData.filter(item => 
+                item.latest_product && item.latest_product.startsWith('rf_999')
+            ).length;
+
+            const currentWeekQuarterly = currentWeekData.filter(item => 
+                item.latest_product && item.latest_product.startsWith('rf_2499')
+            ).length;
+
+            const lastWeekQuarterly = lastWeekData.filter(item => 
+                item.latest_product && item.latest_product.startsWith('rf_2499')
+            ).length;
+
             return {
                 revenue: {
                     value: totalRevenue,
@@ -595,7 +649,25 @@
                 },
                 accountsCreated: null,
                 formsCompleted: null,
-                referrals: null
+                referrals: null,
+                monthlyPaidUsers: {
+                    value: monthlyUsers,
+                    growth: calculateGrowth(currentWeekMonthly, lastWeekMonthly),
+                    currentWeek: currentWeekMonthly,
+                    lastWeek: lastWeekMonthly,
+                    momChange: monthlyMoMChange,
+                    thisMonth: thisMonthMonthly,
+                    lastMonth: lastMonthMonthly
+                },
+                quarterlyPaidUsers: {
+                    value: quarterlyUsers,
+                    growth: calculateGrowth(currentWeekQuarterly, lastWeekQuarterly),
+                    currentWeek: currentWeekQuarterly,
+                    lastWeek: lastWeekQuarterly,
+                    momChange: quarterlyMoMChange,
+                    thisMonth: thisMonthQuarterly,
+                    lastMonth: lastMonthQuarterly
+                }
             };
         }
 
@@ -693,6 +765,32 @@
                     <div class="metric-subtitle">
                         (This week: ${metrics.referrals.currentWeek} / Last week: ${metrics.referrals.lastWeek})
                     </div>
+                </div>
+                <div class="metric-card" onclick="window.open('metrics/monthly_users.html', '_blank')" style="cursor: pointer">
+                    <i class="fas fa-calendar-alt chart-icon"></i>
+                    <div class="metric-title">Monthly Paid Users</div>
+                    <div class="metric-value">${metrics.monthlyPaidUsers.value.toLocaleString()}</div>
+                    <div class="metric-growth ${metrics.monthlyPaidUsers.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.monthlyPaidUsers.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.monthlyPaidUsers.growth).toFixed(1)}% WoW
+                    </div>
+                    <div class="metric-growth ${metrics.monthlyPaidUsers.momChange >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.monthlyPaidUsers.momChange >= 0 ? '↑' : '↓'} ${Math.abs(metrics.monthlyPaidUsers.momChange).toFixed(1)}% MoM
+                    </div>
+                    <div class="metric-subtitle">This Month: ${metrics.monthlyPaidUsers.thisMonth.toLocaleString()}</div>
+                    <div class="metric-subtitle">Last Month: ${metrics.monthlyPaidUsers.lastMonth.toLocaleString()}</div>
+                </div>
+                <div class="metric-card" onclick="window.open('metrics/quarterly_users.html', '_blank')" style="cursor: pointer">
+                    <i class="fas fa-calendar-check chart-icon"></i>
+                    <div class="metric-title">Quarterly Paid Users</div>
+                    <div class="metric-value">${metrics.quarterlyPaidUsers.value.toLocaleString()}</div>
+                    <div class="metric-growth ${metrics.quarterlyPaidUsers.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.quarterlyPaidUsers.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.quarterlyPaidUsers.growth).toFixed(1)}% WoW
+                    </div>
+                    <div class="metric-growth ${metrics.quarterlyPaidUsers.momChange >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.quarterlyPaidUsers.momChange >= 0 ? '↑' : '↓'} ${Math.abs(metrics.quarterlyPaidUsers.momChange).toFixed(1)}% MoM
+                    </div>
+                    <div class="metric-subtitle">This Month: ${metrics.quarterlyPaidUsers.thisMonth.toLocaleString()}</div>
+                    <div class="metric-subtitle">Last Month: ${metrics.quarterlyPaidUsers.lastMonth.toLocaleString()}</div>
                 </div>
             `;
         }
