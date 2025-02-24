@@ -1,6 +1,48 @@
-# RFRevenueCatData
+# Ryan Fernando App Monetization Analytics Dashboard
 
-Analytics dashboard for Ryan Fernando's app monetization data.
+A real-time analytics dashboard for monitoring app monetization metrics and user behavior.
+
+## Features
+
+### Key Performance Indicators (KPIs)
+- Landing Page Signups
+- Total Trials
+- Total Paid Users
+- Monthly Paid Users (NEW)
+- Quarterly Paid Users (NEW)
+- Monthly Recurring Revenue (MRR)
+- Total Revenue
+- Accounts Created
+- Intake Forms Completed
+- Referrals
+
+### Trend Analysis
+- Daily trend charts for all metrics
+- Week over Week (WoW) growth rates
+- Month over Month (MoM) changes
+- Cumulative totals
+
+### Revenue Analytics
+- Revenue breakdown by subscription type
+- Monthly vs Quarterly user tracking
+- Conversion rates
+- Geographic distribution
+
+### Data Sources
+- RevenueCat for subscription data
+- OneSignal for user behavior
+- Unbounce for landing page metrics
+
+## Tech Stack
+- Vanilla JavaScript
+- Plotly.js (v2.27.0) for data visualization
+- GitHub Pages for hosting
+
+## Updates
+- Added Monthly and Quarterly paid user tracking
+- Improved trend visualization with cumulative totals
+- Enhanced error handling for data loading
+- Updated all chart libraries to latest stable versions
 
 ## Data Files
 
