@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Revenue - Detailed View</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         :root {
             --brand-color: #f57f2b;
@@ -39,8 +39,13 @@
     <script>
         async function loadData() {
             try {
-                const revenueCatUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/csvjson.json';
+                const revenueCatUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/main/revenuecat_data.json';
                 const response = await fetch(revenueCatUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const data = await response.json();
 
                 // Group by date

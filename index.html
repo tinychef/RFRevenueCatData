@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ryan Fernando App Monetization Analytics</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root {
@@ -234,161 +234,166 @@
 
     <script>
         // Function to load data when page loads
-        function loadDashboardData() {
+        async function loadData() {
             const loadingDiv = document.getElementById('loadingMessage');
             const errorContainer = document.getElementById('errorContainer');
             
             loadingDiv.style.display = 'block';
             errorContainer.style.display = 'none';
 
-            // Using GitHub URLs for all data
-            const revenueCatUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/revenuecat_data.json';
-            const unbounceUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/Unbounce_landing_page_leads_data.json';
-            
-            // Load split OneSignal files from GitHub
-            const oneSignalUrls = [
-                'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/OneSignal_Data_part1.json',
-                'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/OneSignal_Data_part2.json',
-                'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/OneSignal_Data_part3.json',
-                'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/OneSignal_Data_part4.json'
-            ];
+            try {
+                // Using GitHub URLs for all data
+                const revenueCatUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/main/revenuecat_data.json';
+                const unbounceUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/main/Unbounce_landing_page_leads_data.json';
+                
+                // Load split OneSignal files from GitHub
+                const oneSignalUrls = [
+                    'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/main/OneSignal_Data_part1.json',
+                    'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/main/OneSignal_Data_part2.json',
+                    'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/main/OneSignal_Data_part3.json',
+                    'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/main/OneSignal_Data_part4.json'
+                ];
 
-            // Load all data from GitHub
-            Promise.all([
-                fetch(revenueCatUrl).then(response => response.json()),
-                fetch(unbounceUrl).then(response => response.json()),
-                Promise.all(oneSignalUrls.map(url => 
-                    fetch(url)
-                        .then(response => response.json())
-                        .catch(error => {
-                            console.error('Error loading OneSignal part:', error);
-                            return [];
-                        })
-                )).then(parts => parts.flat())
-            ])
-            .then(([revenueCatData, unbounceData, oneSignalData = []]) => {
-                if (validateData(revenueCatData)) {
-                    // Calculate WoW for Landing Page Signups
-                    const now = new Date();
-                    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                    const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+                // Load all data from GitHub
+                Promise.all([
+                    fetch(revenueCatUrl).then(response => response.json()),
+                    fetch(unbounceUrl).then(response => response.json()),
+                    Promise.all(oneSignalUrls.map(url => 
+                        fetch(url)
+                            .then(response => response.json())
+                            .catch(error => {
+                                console.error('Error loading OneSignal part:', error);
+                                return [];
+                            })
+                    )).then(parts => parts.flat())
+                ])
+                .then(([revenueCatData, unbounceData, oneSignalData = []]) => {
+                    if (validateData(revenueCatData)) {
+                        // Calculate WoW for Landing Page Signups
+                        const now = new Date();
+                        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                        const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-                    const currentWeekSignups = unbounceData.filter(lead => {
-                        const date = new Date(lead.date_submitted);
-                        return date >= oneWeekAgo;
-                    }).length;
+                        const currentWeekSignups = unbounceData.filter(lead => {
+                            const date = new Date(lead.date_submitted);
+                            return date >= oneWeekAgo;
+                        }).length;
 
-                    const lastWeekSignups = unbounceData.filter(lead => {
-                        const date = new Date(lead.date_submitted);
-                        return date >= twoWeeksAgo && date < oneWeekAgo;
-                    }).length;
+                        const lastWeekSignups = unbounceData.filter(lead => {
+                            const date = new Date(lead.date_submitted);
+                            return date >= twoWeeksAgo && date < oneWeekAgo;
+                        }).length;
 
-                    const signupsGrowth = lastWeekSignups > 0 ? 
-                        ((currentWeekSignups - lastWeekSignups) / lastWeekSignups) * 100 : 100;
+                        const signupsGrowth = lastWeekSignups > 0 ? 
+                            ((currentWeekSignups - lastWeekSignups) / lastWeekSignups) * 100 : 100;
 
-                    const metrics = calculateMetrics(revenueCatData);
-                    metrics.newUsers = {
-                        value: unbounceData.length,
-                        growth: signupsGrowth,
-                        currentWeek: currentWeekSignups,
-                        lastWeek: lastWeekSignups
-                    };
-                    
-                    // Calculate Account Created metrics
-                    const accountCreatedData = oneSignalData.filter(user => user.tags && user.tags.account_created === "true");
-                    console.log('Total accounts created:', accountCreatedData.length);
-                    
-                    // Calculate weekly numbers using first_session for timing
-                    const currentWeekAccounts = accountCreatedData.filter(user => {
-                        const sessionDate = new Date(user.first_session); // Direct parse, no parseInt needed
-                        console.log('First session raw:', user.first_session);
-                        console.log('First session parsed:', sessionDate);
-                        return sessionDate >= oneWeekAgo;
-                    }).length;
-                    console.log('Current week accounts:', currentWeekAccounts);
-                    console.log('One week ago:', oneWeekAgo);
+                        const metrics = calculateMetrics(revenueCatData);
+                        metrics.newUsers = {
+                            value: unbounceData.length,
+                            growth: signupsGrowth,
+                            currentWeek: currentWeekSignups,
+                            lastWeek: lastWeekSignups
+                        };
+                        
+                        // Calculate Account Created metrics
+                        const accountCreatedData = oneSignalData.filter(user => user.tags && user.tags.account_created === "true");
+                        console.log('Total accounts created:', accountCreatedData.length);
+                        
+                        // Calculate weekly numbers using first_session for timing
+                        const currentWeekAccounts = accountCreatedData.filter(user => {
+                            const sessionDate = new Date(user.first_session); // Direct parse, no parseInt needed
+                            console.log('First session raw:', user.first_session);
+                            console.log('First session parsed:', sessionDate);
+                            return sessionDate >= oneWeekAgo;
+                        }).length;
+                        console.log('Current week accounts:', currentWeekAccounts);
+                        console.log('One week ago:', oneWeekAgo);
 
-                    const lastWeekAccounts = accountCreatedData.filter(user => {
-                        const sessionDate = new Date(user.first_session); // Direct parse, no parseInt needed
-                        return sessionDate >= twoWeeksAgo && sessionDate < oneWeekAgo;
-                    }).length;
-                    console.log('Last week accounts:', lastWeekAccounts);
-                    console.log('Two weeks ago:', twoWeeksAgo);
+                        const lastWeekAccounts = accountCreatedData.filter(user => {
+                            const sessionDate = new Date(user.first_session); // Direct parse, no parseInt needed
+                            return sessionDate >= twoWeeksAgo && sessionDate < oneWeekAgo;
+                        }).length;
+                        console.log('Last week accounts:', lastWeekAccounts);
+                        console.log('Two weeks ago:', twoWeeksAgo);
 
-                    const accountsGrowth = lastWeekAccounts > 0 ? 
-                        ((currentWeekAccounts - lastWeekAccounts) / lastWeekAccounts) * 100 : 100;
+                        const accountsGrowth = lastWeekAccounts > 0 ? 
+                            ((currentWeekAccounts - lastWeekAccounts) / lastWeekAccounts) * 100 : 100;
 
-                    metrics.accountsCreated = {
-                        value: accountCreatedData.length,
-                        growth: accountsGrowth,
-                        currentWeek: currentWeekAccounts,
-                        lastWeek: lastWeekAccounts
-                    };
-                    
-                    // Calculate Form Completed metrics
-                    const formCompletedData = oneSignalData.filter(user => user.tags && user.tags.FormComplete === "true");
-                    
-                    // Calculate weekly numbers using first_session for timing
-                    const currentWeekForms = formCompletedData.filter(user => {
-                        const sessionDate = new Date(user.first_session);
-                        return sessionDate >= oneWeekAgo;
-                    }).length;
+                        metrics.accountsCreated = {
+                            value: accountCreatedData.length,
+                            growth: accountsGrowth,
+                            currentWeek: currentWeekAccounts,
+                            lastWeek: lastWeekAccounts
+                        };
+                        
+                        // Calculate Form Completed metrics
+                        const formCompletedData = oneSignalData.filter(user => user.tags && user.tags.FormComplete === "true");
+                        
+                        // Calculate weekly numbers using first_session for timing
+                        const currentWeekForms = formCompletedData.filter(user => {
+                            const sessionDate = new Date(user.first_session);
+                            return sessionDate >= oneWeekAgo;
+                        }).length;
 
-                    const lastWeekForms = formCompletedData.filter(user => {
-                        const sessionDate = new Date(user.first_session);
-                        return sessionDate >= twoWeeksAgo && sessionDate < oneWeekAgo;
-                    }).length;
+                        const lastWeekForms = formCompletedData.filter(user => {
+                            const sessionDate = new Date(user.first_session);
+                            return sessionDate >= twoWeeksAgo && sessionDate < oneWeekAgo;
+                        }).length;
 
-                    const formsGrowth = lastWeekForms > 0 ? 
-                        ((currentWeekForms - lastWeekForms) / lastWeekForms) * 100 : 100;
+                        const formsGrowth = lastWeekForms > 0 ? 
+                            ((currentWeekForms - lastWeekForms) / lastWeekForms) * 100 : 100;
 
-                    metrics.formsCompleted = {
-                        value: formCompletedData.length,
-                        growth: formsGrowth,
-                        currentWeek: currentWeekForms,
-                        lastWeek: lastWeekForms
-                    };
-                    
-                    // Calculate Referrals metrics
-                    const referralsData = oneSignalData.filter(user => user.tags && user.tags.FFInvite === "true");
-                    
-                    // Calculate weekly numbers using first_session for timing
-                    const currentWeekReferrals = referralsData.filter(user => {
-                        const sessionDate = new Date(user.first_session);
-                        return sessionDate >= oneWeekAgo;
-                    }).length;
+                        metrics.formsCompleted = {
+                            value: formCompletedData.length,
+                            growth: formsGrowth,
+                            currentWeek: currentWeekForms,
+                            lastWeek: lastWeekForms
+                        };
+                        
+                        // Calculate Referrals metrics
+                        const referralsData = oneSignalData.filter(user => user.tags && user.tags.FFInvite === "true");
+                        
+                        // Calculate weekly numbers using first_session for timing
+                        const currentWeekReferrals = referralsData.filter(user => {
+                            const sessionDate = new Date(user.first_session);
+                            return sessionDate >= oneWeekAgo;
+                        }).length;
 
-                    const lastWeekReferrals = referralsData.filter(user => {
-                        const sessionDate = new Date(user.first_session);
-                        return sessionDate >= twoWeeksAgo && sessionDate < oneWeekAgo;
-                    }).length;
+                        const lastWeekReferrals = referralsData.filter(user => {
+                            const sessionDate = new Date(user.first_session);
+                            return sessionDate >= twoWeeksAgo && sessionDate < oneWeekAgo;
+                        }).length;
 
-                    const referralsGrowth = lastWeekReferrals > 0 ? 
-                        ((currentWeekReferrals - lastWeekReferrals) / lastWeekReferrals) * 100 : 100;
+                        const referralsGrowth = lastWeekReferrals > 0 ? 
+                            ((currentWeekReferrals - lastWeekReferrals) / lastWeekReferrals) * 100 : 100;
 
-                    metrics.referrals = {
-                        value: referralsData.length,
-                        growth: referralsGrowth,
-                        currentWeek: currentWeekReferrals,
-                        lastWeek: lastWeekReferrals
-                    };
-                    
-                    generateDashboard(revenueCatData, metrics);
-                } else {
-                    throw new Error('Invalid data format');
-                }
-            })
-            .catch(error => {
+                        metrics.referrals = {
+                            value: referralsData.length,
+                            growth: referralsGrowth,
+                            currentWeek: currentWeekReferrals,
+                            lastWeek: lastWeekReferrals
+                        };
+                        
+                        generateDashboard(revenueCatData, metrics);
+                    } else {
+                        throw new Error('Invalid data format');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    errorContainer.style.display = 'block';
+                })
+                .finally(() => {
+                    loadingDiv.style.display = 'none';
+                });
+            } catch (error) {
                 console.error('Error:', error);
                 errorContainer.style.display = 'block';
-            })
-            .finally(() => {
-                loadingDiv.style.display = 'none';
-            });
+            }
         }
 
         // Load data when page loads
-        document.addEventListener('DOMContentLoaded', loadDashboardData);
+        document.addEventListener('DOMContentLoaded', loadData);
 
         // Keep the file input handler for fallback
         document.getElementById('fileInput').addEventListener('change', function(event) {
@@ -514,6 +519,40 @@
             const currentWeekTrials = currentWeekData.length;
             const lastWeekTrials = lastWeekData.length;
 
+            // Add monthly date ranges for trials
+            const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+            // Calculate monthly trials
+            const thisMonthTrials = dataArray.filter(item => {
+                const date = new Date(parseInt(item.first_seen_at));
+                return date >= thisMonth;
+            }).length;
+
+            const lastMonthTrials = dataArray.filter(item => {
+                const date = new Date(parseInt(item.first_seen_at));
+                return date >= lastMonth && date < thisMonth;
+            }).length;
+
+            // Calculate MoM change
+            const momChange = lastMonthTrials > 0 ? 
+                ((thisMonthTrials - lastMonthTrials) / lastMonthTrials) * 100 : 0;
+
+            // Calculate monthly paid users
+            const thisMonthPaidUsers = dataArray.filter(item => {
+                const date = new Date(parseInt(item.first_seen_at));
+                return date >= thisMonth && parseFloat(item.total_spent) > 0;
+            }).length;
+
+            const lastMonthPaidUsers = dataArray.filter(item => {
+                const date = new Date(parseInt(item.first_seen_at));
+                return date >= lastMonth && date < thisMonth && parseFloat(item.total_spent) > 0;
+            }).length;
+
+            // Calculate MoM change for paid users
+            const paidUsersMomChange = lastMonthPaidUsers > 0 ? 
+                ((thisMonthPaidUsers - lastMonthPaidUsers) / lastMonthPaidUsers) * 100 : 0;
+
             return {
                 revenue: {
                     value: totalRevenue,
@@ -531,7 +570,10 @@
                     value: totalPaidConversions,
                     growth: calculateGrowth(currentWeekPaidConversions, lastWeekPaidConversions),
                     currentWeek: currentWeekPaidConversions,
-                    lastWeek: lastWeekPaidConversions
+                    lastWeek: lastWeekPaidConversions,
+                    momChange: paidUsersMomChange,
+                    thisMonth: thisMonthPaidUsers,
+                    lastMonth: lastMonthPaidUsers
                 },
                 conversion: {
                     value: conversionRate,
@@ -543,7 +585,10 @@
                     value: totalTrials,
                     growth: calculateGrowth(currentWeekTrials, lastWeekTrials),
                     currentWeek: currentWeekTrials,
-                    lastWeek: lastWeekTrials
+                    lastWeek: lastWeekTrials,
+                    momChange: momChange,
+                    thisMonth: thisMonthTrials,
+                    lastMonth: lastMonthTrials
                 },
                 newUsers: {
                     value: dataArray.length
@@ -593,24 +638,28 @@
                 <div class="metric-card" onclick="window.open('metrics/trials.html', '_blank')" style="cursor: pointer">
                     <i class="fas fa-chart-line chart-icon"></i>
                     <div class="metric-title">Total Trials</div>
-                    <div class="metric-value">${metrics.totalTrials.value.toLocaleString('en-US')}</div>
+                    <div class="metric-value">${metrics.totalTrials.value.toLocaleString()}</div>
                     <div class="metric-growth ${metrics.totalTrials.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
                         ${metrics.totalTrials.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.totalTrials.growth).toFixed(1)}% WoW
                     </div>
-                    <div class="metric-subtitle">
-                        (This week: ${metrics.totalTrials.currentWeek} / Last week: ${metrics.totalTrials.lastWeek})
+                    <div class="metric-growth ${metrics.totalTrials.momChange >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.totalTrials.momChange >= 0 ? '↑' : '↓'} ${Math.abs(metrics.totalTrials.momChange).toFixed(1)}% MoM
                     </div>
+                    <div class="metric-subtitle">This Month: ${metrics.totalTrials.thisMonth.toLocaleString()}</div>
+                    <div class="metric-subtitle">Last Month: ${metrics.totalTrials.lastMonth.toLocaleString()}</div>
                 </div>
                 <div class="metric-card" onclick="window.open('metrics/conversions.html', '_blank')" style="cursor: pointer">
-                    <i class="fas fa-chart-line chart-icon"></i>
-                    <div class="metric-title">Total Paid Conversions</div>
-                    <div class="metric-value">${metrics.totalPaidConversions.value.toLocaleString('en-US')}</div>
+                    <i class="fas fa-user-check chart-icon"></i>
+                    <div class="metric-title">Total Paid Users</div>
+                    <div class="metric-value">${metrics.totalPaidConversions.value.toLocaleString()}</div>
                     <div class="metric-growth ${metrics.totalPaidConversions.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
                         ${metrics.totalPaidConversions.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.totalPaidConversions.growth).toFixed(1)}% WoW
                     </div>
-                    <div class="metric-subtitle">
-                        (This week: ${metrics.totalPaidConversions.currentWeek} / Last week: ${metrics.totalPaidConversions.lastWeek})
+                    <div class="metric-growth ${metrics.totalPaidConversions.momChange >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.totalPaidConversions.momChange >= 0 ? '↑' : '↓'} ${Math.abs(metrics.totalPaidConversions.momChange).toFixed(1)}% MoM
                     </div>
+                    <div class="metric-subtitle">This Month: ${metrics.totalPaidConversions.thisMonth.toLocaleString()}</div>
+                    <div class="metric-subtitle">Last Month: ${metrics.totalPaidConversions.lastMonth.toLocaleString()}</div>
                 </div>
                 <div class="metric-card" onclick="window.open('metrics/revenue.html', '_blank')" style="cursor: pointer">
                     <i class="fas fa-chart-line chart-icon"></i>

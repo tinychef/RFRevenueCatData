@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Referrals - Detailed View</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         :root {
             --brand-color: #f57f2b;
@@ -39,9 +39,18 @@
     <script>
         async function loadData() {
             try {
-                const oneSignalUrl = 'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/refs/heads/main/OneSignal_Data_on_user_behaviour.json';
-                const response = await fetch(oneSignalUrl);
-                const data = await response.json();
+                const oneSignalUrls = [
+                    'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/main/OneSignal_Data_part1.json',
+                    'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/main/OneSignal_Data_part2.json',
+                    'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/main/OneSignal_Data_part3.json',
+                    'https://raw.githubusercontent.com/tinychef/RFRevenueCatData/main/OneSignal_Data_part4.json'
+                ];
+
+                // Load and combine all parts
+                const allData = await Promise.all(oneSignalUrls.map(url => 
+                    fetch(url).then(response => response.json())
+                ));
+                const data = allData.flat();
 
                 // Filter referrals
                 const referralsData = data.filter(user => user.tags && user.tags.FFInvite === "true");
