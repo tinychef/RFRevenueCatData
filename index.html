@@ -256,8 +256,15 @@
 
                 // Load all data from GitHub
                 Promise.all([
-                    fetch(revenueCatUrl).then(response => response.json()),
-                    fetch(unbounceUrl).then(response => response.json()),
+                    fetch(revenueCatUrl).then(response => {
+                        if (!response.ok) throw new Error('RevenueCat data fetch failed');
+                        return response.json();
+                    }),
+                    fetch(unbounceUrl).then(response => {
+                        if (!response.ok) throw new Error('Unbounce data fetch failed');
+                        console.log('Unbounce response status:', response.status);
+                        return response.json();
+                    }),
                     Promise.all(oneSignalUrls.map(url => 
                         fetch(url)
                             .then(response => response.json())
@@ -268,6 +275,10 @@
                     )).then(parts => parts.flat())
                 ])
                 .then(([revenueCatData, unbounceData, oneSignalData = []]) => {
+                    console.log('RevenueCat data length:', revenueCatData.length);
+                    console.log('Unbounce data length:', unbounceData.length);  // Should be 12963
+                    console.log('Sample unbounce entry:', unbounceData[0]);
+
                     if (validateData(revenueCatData)) {
                         // Calculate WoW for Landing Page Signups
                         const now = new Date();
@@ -276,6 +287,7 @@
 
                         const currentWeekSignups = unbounceData.filter(lead => {
                             const date = new Date(lead.date_submitted);
+                            console.log('Lead date:', date, 'Is after oneWeekAgo:', date >= oneWeekAgo);
                             return date >= oneWeekAgo;
                         }).length;
 
@@ -283,6 +295,9 @@
                             const date = new Date(lead.date_submitted);
                             return date >= twoWeeksAgo && date < oneWeekAgo;
                         }).length;
+
+                        console.log('Current week signups:', currentWeekSignups);
+                        console.log('Last week signups:', lastWeekSignups);
 
                         const signupsGrowth = lastWeekSignups > 0 ? 
                             ((currentWeekSignups - lastWeekSignups) / lastWeekSignups) * 100 : 100;
@@ -439,12 +454,14 @@
         function calculateMetrics(data) {
             const dataArray = Array.isArray(data) ? data : [data];
             const now = new Date();
-            const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-            const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
-
-            // Add weekly date ranges
+            
+            // Date calculations for weeks and months
             const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+            const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+            const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
+            const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
             // Get weekly data sets
             const currentWeekData = dataArray.filter(item => new Date(parseInt(item.first_seen_at)) >= oneWeekAgo);
@@ -452,6 +469,36 @@
                 const date = new Date(parseInt(item.first_seen_at));
                 return date >= twoWeeksAgo && date < oneWeekAgo;
             });
+
+            // Calculate weekly trials
+            const currentWeekTrials = currentWeekData.length;
+            const lastWeekTrials = lastWeekData.length;
+
+            // Calculate weekly paid conversions
+            const currentWeekPaidConversions = currentWeekData.filter(item => parseFloat(item.total_spent) > 0).length;
+            const lastWeekPaidConversions = lastWeekData.filter(item => parseFloat(item.total_spent) > 0).length;
+
+            // Debug logs for weekly metrics
+            console.log('=== Weekly Metrics Debug ===');
+            console.log('Date ranges:');
+            console.log('Current week starts:', oneWeekAgo.toISOString());
+            console.log('Last week starts:', twoWeeksAgo.toISOString());
+            console.log('Last week ends:', oneWeekAgo.toISOString());
+            
+            console.log('Trials metrics:');
+            console.log('- Current week:', currentWeekTrials);
+            console.log('- Last week:', lastWeekTrials);
+            
+            console.log('Paid Users metrics:');
+            console.log('- Current week:', currentWeekPaidConversions);
+            console.log('- Last week:', lastWeekPaidConversions);
+
+            // Calculate weekly paid users
+            const currentWeekPaidUsers = currentWeekData.filter(item => parseFloat(item.total_spent) > 0).length;
+            const lastWeekPaidUsers = lastWeekData.filter(item => parseFloat(item.total_spent) > 0).length;
+
+            console.log('Paid Users - Current Week:', currentWeekPaidUsers);
+            console.log('Paid Users - Last Week:', lastWeekPaidUsers);
 
             // Calculate weekly revenue
             const currentWeekRevenue = dataArray
@@ -505,90 +552,11 @@
             const currentWeekMRR = calculateMRR(currentWeekData);
             const lastWeekMRR = calculateMRR(lastWeekData);
 
-            // Calculate weekly paid conversions
-            const currentWeekPaidConversions = currentWeekData.filter(item => parseFloat(item.total_spent) > 0).length;
-            const lastWeekPaidConversions = lastWeekData.filter(item => parseFloat(item.total_spent) > 0).length;
-
             // Calculate weekly conversion rates
             const currentWeekConversionRate = currentWeekPaidConversions > 0 ? 
                 (currentWeekPaidConversions / currentWeekData.length) * 100 : 0;
             const lastWeekConversionRate = lastWeekPaidConversions > 0 ? 
                 (lastWeekPaidConversions / lastWeekData.length) * 100 : 0;
-
-            // Calculate weekly trials
-            const currentWeekTrials = currentWeekData.length;
-            const lastWeekTrials = lastWeekData.length;
-
-            // Add monthly date ranges for trials
-            const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-
-            // Calculate monthly trials
-            const thisMonthTrials = dataArray.filter(item => {
-                const date = new Date(parseInt(item.first_seen_at));
-                return date >= thisMonth;
-            }).length;
-
-            const lastMonthTrials = dataArray.filter(item => {
-                const date = new Date(parseInt(item.first_seen_at));
-                return date >= lastMonth && date < thisMonth;
-            }).length;
-
-            // Calculate MoM change
-            const momChange = lastMonthTrials > 0 ? 
-                ((thisMonthTrials - lastMonthTrials) / lastMonthTrials) * 100 : 0;
-
-            // Calculate monthly paid users
-            const thisMonthPaidUsers = dataArray.filter(item => {
-                const date = new Date(parseInt(item.first_seen_at));
-                return date >= thisMonth && parseFloat(item.total_spent) > 0;
-            }).length;
-
-            const lastMonthPaidUsers = dataArray.filter(item => {
-                const date = new Date(parseInt(item.first_seen_at));
-                return date >= lastMonth && date < thisMonth && parseFloat(item.total_spent) > 0;
-            }).length;
-
-            // Calculate MoM change for paid users
-            const paidUsersMomChange = lastMonthPaidUsers > 0 ? 
-                ((thisMonthPaidUsers - lastMonthPaidUsers) / lastMonthPaidUsers) * 100 : 0;
-
-            // Calculate monthly and quarterly paid users
-            const monthlyUsers = dataArray.filter(item => {
-                return item.latest_product && 
-                       item.latest_product.startsWith('rf_999') && 
-                       parseFloat(item.total_spent) > 0;
-            }).length;
-
-            const quarterlyUsers = dataArray.filter(item => {
-                return item.latest_product && 
-                       item.latest_product.startsWith('rf_2499') && 
-                       parseFloat(item.total_spent) > 0;
-            }).length;
-
-            // Calculate this month and last month data for both types
-            const thisMonthMonthly = currentMonthData.filter(item => 
-                item.latest_product && item.latest_product.startsWith('rf_999')
-            ).length;
-
-            const lastMonthMonthly = lastMonthData.filter(item => 
-                item.latest_product && item.latest_product.startsWith('rf_999')
-            ).length;
-
-            const thisMonthQuarterly = currentMonthData.filter(item => 
-                item.latest_product && item.latest_product.startsWith('rf_2499')
-            ).length;
-
-            const lastMonthQuarterly = lastMonthData.filter(item => 
-                item.latest_product && item.latest_product.startsWith('rf_2499')
-            ).length;
-
-            // Calculate MoM changes
-            const monthlyMoMChange = lastMonthMonthly > 0 ? 
-                ((thisMonthMonthly - lastMonthMonthly) / lastMonthMonthly) * 100 : 0;
-
-            const quarterlyMoMChange = lastMonthQuarterly > 0 ? 
-                ((thisMonthQuarterly - lastMonthQuarterly) / lastMonthQuarterly) * 100 : 0;
 
             // Calculate week over week growth for both
             const currentWeekMonthly = currentWeekData.filter(item => 
@@ -625,9 +593,9 @@
                     growth: calculateGrowth(currentWeekPaidConversions, lastWeekPaidConversions),
                     currentWeek: currentWeekPaidConversions,
                     lastWeek: lastWeekPaidConversions,
-                    momChange: paidUsersMomChange,
-                    thisMonth: thisMonthPaidUsers,
-                    lastMonth: lastMonthPaidUsers
+                    momChange: calculateGrowth(currentWeekPaidUsers, lastWeekPaidUsers),
+                    thisMonth: currentWeekPaidUsers,
+                    lastMonth: lastWeekPaidUsers
                 },
                 conversion: {
                     value: conversionRate,
@@ -640,9 +608,9 @@
                     growth: calculateGrowth(currentWeekTrials, lastWeekTrials),
                     currentWeek: currentWeekTrials,
                     lastWeek: lastWeekTrials,
-                    momChange: momChange,
-                    thisMonth: thisMonthTrials,
-                    lastMonth: lastMonthTrials
+                    momChange: calculateGrowth(currentWeekPaidUsers, lastWeekPaidUsers),
+                    thisMonth: currentWeekPaidUsers,
+                    lastMonth: lastWeekPaidUsers
                 },
                 newUsers: {
                     value: dataArray.length
@@ -651,22 +619,30 @@
                 formsCompleted: null,
                 referrals: null,
                 monthlyPaidUsers: {
-                    value: monthlyUsers,
+                    value: dataArray.filter(item => {
+                        return item.latest_product && 
+                               item.latest_product.startsWith('rf_999') && 
+                               parseFloat(item.total_spent) > 0;
+                    }).length,
                     growth: calculateGrowth(currentWeekMonthly, lastWeekMonthly),
                     currentWeek: currentWeekMonthly,
                     lastWeek: lastWeekMonthly,
-                    momChange: monthlyMoMChange,
-                    thisMonth: thisMonthMonthly,
-                    lastMonth: lastMonthMonthly
+                    momChange: calculateGrowth(currentWeekMonthly, lastWeekMonthly),
+                    thisMonth: currentWeekMonthly,
+                    lastMonth: lastWeekMonthly
                 },
                 quarterlyPaidUsers: {
-                    value: quarterlyUsers,
+                    value: dataArray.filter(item => {
+                        return item.latest_product && 
+                               item.latest_product.startsWith('rf_2499') && 
+                               parseFloat(item.total_spent) > 0;
+                    }).length,
                     growth: calculateGrowth(currentWeekQuarterly, lastWeekQuarterly),
                     currentWeek: currentWeekQuarterly,
                     lastWeek: lastWeekQuarterly,
-                    momChange: quarterlyMoMChange,
-                    thisMonth: thisMonthQuarterly,
-                    lastMonth: lastMonthQuarterly
+                    momChange: calculateGrowth(currentWeekQuarterly, lastWeekQuarterly),
+                    thisMonth: currentWeekQuarterly,
+                    lastMonth: lastWeekQuarterly
                 }
             };
         }
@@ -714,11 +690,9 @@
                     <div class="metric-growth ${metrics.totalTrials.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
                         ${metrics.totalTrials.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.totalTrials.growth).toFixed(1)}% WoW
                     </div>
-                    <div class="metric-growth ${metrics.totalTrials.momChange >= 0 ? 'growth-positive' : 'growth-negative'}">
-                        ${metrics.totalTrials.momChange >= 0 ? '↑' : '↓'} ${Math.abs(metrics.totalTrials.momChange).toFixed(1)}% MoM
-                    </div>
-                    <div class="metric-subtitle">This Month: ${metrics.totalTrials.thisMonth.toLocaleString()}</div>
-                    <div class="metric-subtitle">Last Month: ${metrics.totalTrials.lastMonth.toLocaleString()}</div>
+                    <div class="metric-subtitle">(This week: ${metrics.totalTrials.currentWeek} / Last week: ${metrics.totalTrials.lastWeek})</div>
+                    <div class="metric-subtitle">This Month: ${metrics.totalTrials.thisMonth}</div>
+                    <div class="metric-subtitle">Last Month: ${metrics.totalTrials.lastMonth}</div>
                 </div>
                 <div class="metric-card" onclick="window.open('metrics/conversions.html', '_blank')" style="cursor: pointer">
                     <i class="fas fa-user-check chart-icon"></i>
@@ -727,11 +701,9 @@
                     <div class="metric-growth ${metrics.totalPaidConversions.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
                         ${metrics.totalPaidConversions.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.totalPaidConversions.growth).toFixed(1)}% WoW
                     </div>
-                    <div class="metric-growth ${metrics.totalPaidConversions.momChange >= 0 ? 'growth-positive' : 'growth-negative'}">
-                        ${metrics.totalPaidConversions.momChange >= 0 ? '↑' : '↓'} ${Math.abs(metrics.totalPaidConversions.momChange).toFixed(1)}% MoM
-                    </div>
-                    <div class="metric-subtitle">This Month: ${metrics.totalPaidConversions.thisMonth.toLocaleString()}</div>
-                    <div class="metric-subtitle">Last Month: ${metrics.totalPaidConversions.lastMonth.toLocaleString()}</div>
+                    <div class="metric-subtitle">(This week: ${metrics.totalPaidConversions.currentWeek} / Last week: ${metrics.totalPaidConversions.lastWeek})</div>
+                    <div class="metric-subtitle">This Month: ${metrics.totalPaidConversions.thisMonth}</div>
+                    <div class="metric-subtitle">Last Month: ${metrics.totalPaidConversions.lastMonth}</div>
                 </div>
                 <div class="metric-card" onclick="window.open('metrics/revenue.html', '_blank')" style="cursor: pointer">
                     <i class="fas fa-chart-line chart-icon"></i>
