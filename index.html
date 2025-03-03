@@ -519,29 +519,77 @@
             const conversionRate = totalTrials > 0 ? (totalPaidConversions / totalTrials) * 100 : 0;
 
             // Calculate period metrics
-            const currentMonthData = dataArray.filter(item => new Date(parseInt(item.first_seen_at)) >= oneMonthAgo);
+            const currentCalendarMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            const previousCalendarMonth = currentCalendarMonth === 0 ? 11 : currentCalendarMonth - 1;
+            const previousCalendarYear = currentCalendarMonth === 0 ? currentYear - 1 : currentYear;
+
+            const currentMonthData = dataArray.filter(item => {
+                const date = new Date(parseInt(item.first_seen_at));
+                return date.getMonth() === currentCalendarMonth && date.getFullYear() === currentYear;
+            });
+
             const lastMonthData = dataArray.filter(item => {
                 const date = new Date(parseInt(item.first_seen_at));
-                return date >= twoMonthsAgo && date < oneMonthAgo;
+                return date.getMonth() === previousCalendarMonth && date.getFullYear() === previousCalendarYear;
             });
 
             const currentPeriodRevenue = currentMonthData.reduce((sum, item) => sum + (parseFloat(item.total_spent) || 0), 0);
             const lastPeriodRevenue = lastMonthData.reduce((sum, item) => sum + (parseFloat(item.total_spent) || 0), 0);
 
-            // Calculate MRR
-            const calculateMRR = (items) => {
-                return items.reduce((sum, item) => {
-                    if (item.status === 'active' && parseFloat(item.total_spent) > 0) {
-                        const monthlyRate = parseFloat(item.total_spent) / 
-                            (parseInt(item.subscription_duration_months) || 1);
-                        return sum + monthlyRate;
-                    }
-                    return sum;
-                }, 0);
-            };
+            // Calculate current MRR using RevenueCat's method with INR rates
+            const currentMRR = dataArray.filter(item => 
+                item.status === 'active'  // Only active subscriptions
+            ).reduce((total, item) => {
+                if (!item.latest_product) return total;
+                
+                // Monthly subscribers (rf_999) - INR 999 or 699
+                if (item.latest_product.startsWith('rf_999')) {
+                    return total + (999 / 82.5);  // Convert INR to USD (approximate rate)
+                }
+                // Quarterly subscribers (rf_2499) - INR 1499 per month
+                else if (item.latest_product.startsWith('rf_2499')) {
+                    return total + (1499 / 82.5);  // Convert INR to USD (approximate rate)
+                }
+                
+                return total;
+            }, 0);
 
-            const currentMRR = calculateMRR(dataArray);
-            const lastMRR = calculateMRR(lastMonthData);
+            // Calculate last month's MRR using the same method
+            const lastMonthMRR = lastMonthData.filter(item => 
+                item.status === 'active'
+            ).reduce((total, item) => {
+                if (!item.latest_product) return total;
+                
+                const priceMatch = item.latest_product.match(/rf_(\d+)/);
+                if (!priceMatch) return total;
+                
+                const priceInCents = parseInt(priceMatch[1]);
+                const priceInDollars = priceInCents / 100;
+                
+                if (item.latest_product.includes('1M')) {
+                    return total + priceInDollars;
+                } else if (item.latest_product.includes('1Q')) {
+                    return total + (priceInDollars / 3);
+                } else if (item.latest_product.includes('1Y')) {
+                    return total + (priceInDollars / 12);
+                }
+                return total;
+            }, 0);
+
+            // For debugging
+            console.log('Active subscriptions:', dataArray.filter(item => item.status === 'active').length);
+            console.log('Monthly subscribers (INR 999):', dataArray.filter(item => 
+                item.status === 'active' && 
+                item.latest_product && 
+                item.latest_product.startsWith('rf_999')
+            ).length);
+            console.log('Quarterly subscribers (INR 1499):', dataArray.filter(item => 
+                item.status === 'active' && 
+                item.latest_product && 
+                item.latest_product.startsWith('rf_2499')
+            ).length);
+            console.log('Total MRR:', currentMRR.toFixed(2));
 
             // Calculate growth
             const calculateGrowth = (current, previous) => {
@@ -549,8 +597,23 @@
             };
 
             // Calculate weekly MRR
-            const currentWeekMRR = calculateMRR(currentWeekData);
-            const lastWeekMRR = calculateMRR(lastWeekData);
+            const currentWeekMRR = currentWeekData.filter(item => 
+                item.status === 'active' && 
+                parseFloat(item.total_spent) > 0
+            ).reduce((total, item) => {
+                const monthlyRate = parseFloat(item.total_spent) / 
+                    (parseInt(item.subscription_duration_months) || 1);
+                return total + monthlyRate;
+            }, 0);
+
+            const lastWeekMRR = lastWeekData.filter(item => 
+                item.status === 'active' && 
+                parseFloat(item.total_spent) > 0
+            ).reduce((total, item) => {
+                const monthlyRate = parseFloat(item.total_spent) / 
+                    (parseInt(item.subscription_duration_months) || 1);
+                return total + monthlyRate;
+            }, 0);
 
             // Calculate weekly conversion rates
             const currentWeekConversionRate = currentWeekPaidConversions > 0 ? 
@@ -575,6 +638,57 @@
                 item.latest_product && item.latest_product.startsWith('rf_2499')
             ).length;
 
+            // Calculate monthly data for Total Trials
+            const thisMonthTrials = currentMonthData.length;  // Should be 236
+            const lastMonthTrials = lastMonthData.length;     // Should be 72
+
+            // Calculate monthly data for Total Paid Users
+            const thisMonthPaidUsers = currentMonthData.filter(item => parseFloat(item.total_spent) > 0).length;
+            const lastMonthPaidUsers = lastMonthData.filter(item => parseFloat(item.total_spent) > 0).length;
+
+            // Calculate MRR Month over Month
+            const thisMonthMRR = currentMonthData.reduce((total, item) => {
+                return total + (parseFloat(item.total_spent) / (parseInt(item.subscription_duration_months) || 1));
+            }, 0);
+
+            // Calculate total Monthly and Quarterly subscribers from all data
+            const monthlyUsers = dataArray.filter(item => 
+                item.latest_product && 
+                item.latest_product.startsWith('rf_999') && 
+                parseFloat(item.total_spent) > 0
+            ).length;  // This should be around 177 based on screenshot
+
+            const quarterlyUsers = dataArray.filter(item => 
+                item.latest_product && 
+                item.latest_product.startsWith('rf_2499') && 
+                parseFloat(item.total_spent) > 0
+            ).length;  // This should be around 129 based on screenshot
+
+            // Month over Month data stays the same
+            const thisMonthMonthlyUsers = currentMonthData.filter(item => 
+                item.latest_product && 
+                item.latest_product.startsWith('rf_999') && 
+                parseFloat(item.total_spent) > 0
+            ).length;
+
+            const lastMonthMonthlyUsers = lastMonthData.filter(item => 
+                item.latest_product && 
+                item.latest_product.startsWith('rf_999') && 
+                parseFloat(item.total_spent) > 0
+            ).length;
+
+            const thisMonthQuarterlyUsers = currentMonthData.filter(item => 
+                item.latest_product && 
+                item.latest_product.startsWith('rf_2499') && 
+                parseFloat(item.total_spent) > 0
+            ).length;
+
+            const lastMonthQuarterlyUsers = lastMonthData.filter(item => 
+                item.latest_product && 
+                item.latest_product.startsWith('rf_2499') && 
+                parseFloat(item.total_spent) > 0
+            ).length;
+
             return {
                 revenue: {
                     value: totalRevenue,
@@ -582,35 +696,29 @@
                     currentWeek: currentWeekRevenue,
                     lastWeek: lastWeekRevenue
                 },
-                mrr: {
-                    value: currentMRR,
-                    growth: calculateGrowth(currentWeekMRR, lastWeekMRR),
-                    currentWeek: currentWeekMRR,
-                    lastWeek: lastWeekMRR
+                totalTrials: {
+                    value: totalTrials,
+                    growth: calculateGrowth(currentWeekTrials, lastWeekTrials),
+                    currentWeek: currentWeekTrials,
+                    lastWeek: lastWeekTrials,
+                    momChange: calculateGrowth(thisMonthTrials, lastMonthTrials),
+                    thisMonth: thisMonthTrials,
+                    lastMonth: lastMonthTrials
                 },
                 totalPaidConversions: {
                     value: totalPaidConversions,
                     growth: calculateGrowth(currentWeekPaidConversions, lastWeekPaidConversions),
                     currentWeek: currentWeekPaidConversions,
                     lastWeek: lastWeekPaidConversions,
-                    momChange: calculateGrowth(currentWeekPaidUsers, lastWeekPaidUsers),
-                    thisMonth: currentWeekPaidUsers,
-                    lastMonth: lastWeekPaidUsers
+                    momChange: calculateGrowth(thisMonthPaidUsers, lastMonthPaidUsers),
+                    thisMonth: thisMonthPaidUsers,
+                    lastMonth: lastMonthPaidUsers
                 },
                 conversion: {
                     value: conversionRate,
                     growth: calculateGrowth(currentWeekConversionRate, lastWeekConversionRate),
                     currentWeek: currentWeekConversionRate,
                     lastWeek: lastWeekConversionRate
-                },
-                totalTrials: {
-                    value: totalTrials,
-                    growth: calculateGrowth(currentWeekTrials, lastWeekTrials),
-                    currentWeek: currentWeekTrials,
-                    lastWeek: lastWeekTrials,
-                    momChange: calculateGrowth(currentWeekPaidUsers, lastWeekPaidUsers),
-                    thisMonth: currentWeekPaidUsers,
-                    lastMonth: lastWeekPaidUsers
                 },
                 newUsers: {
                     value: dataArray.length
@@ -619,30 +727,22 @@
                 formsCompleted: null,
                 referrals: null,
                 monthlyPaidUsers: {
-                    value: dataArray.filter(item => {
-                        return item.latest_product && 
-                               item.latest_product.startsWith('rf_999') && 
-                               parseFloat(item.total_spent) > 0;
-                    }).length,
+                    value: monthlyUsers,  // Total from all data
                     growth: calculateGrowth(currentWeekMonthly, lastWeekMonthly),
                     currentWeek: currentWeekMonthly,
                     lastWeek: lastWeekMonthly,
-                    momChange: calculateGrowth(currentWeekMonthly, lastWeekMonthly),
-                    thisMonth: currentWeekMonthly,
-                    lastMonth: lastWeekMonthly
+                    momChange: calculateGrowth(thisMonthMonthlyUsers, lastMonthMonthlyUsers),
+                    thisMonth: thisMonthMonthlyUsers,
+                    lastMonth: lastMonthMonthlyUsers
                 },
                 quarterlyPaidUsers: {
-                    value: dataArray.filter(item => {
-                        return item.latest_product && 
-                               item.latest_product.startsWith('rf_2499') && 
-                               parseFloat(item.total_spent) > 0;
-                    }).length,
+                    value: quarterlyUsers,  // Total from all data
                     growth: calculateGrowth(currentWeekQuarterly, lastWeekQuarterly),
                     currentWeek: currentWeekQuarterly,
                     lastWeek: lastWeekQuarterly,
-                    momChange: calculateGrowth(currentWeekQuarterly, lastWeekQuarterly),
-                    thisMonth: currentWeekQuarterly,
-                    lastMonth: lastWeekQuarterly
+                    momChange: calculateGrowth(thisMonthQuarterlyUsers, lastMonthQuarterlyUsers),
+                    thisMonth: thisMonthQuarterlyUsers,
+                    lastMonth: lastMonthQuarterlyUsers
                 }
             };
         }
@@ -716,17 +816,6 @@
                         (This week: $${metrics.revenue.currentWeek.toLocaleString('en-US', {maximumFractionDigits: 0})} / Last week: $${metrics.revenue.lastWeek.toLocaleString('en-US', {maximumFractionDigits: 0})})
                     </div>
                 </div>
-                <div class="metric-card" onclick="window.open('metrics/mrr.html', '_blank')" style="cursor: pointer">
-                    <i class="fas fa-chart-line chart-icon"></i>
-                    <div class="metric-title">Monthly Recurring Revenue</div>
-                    <div class="metric-value">$${metrics.mrr.value.toLocaleString('en-US', {maximumFractionDigits: 0})}</div>
-                    <div class="metric-growth ${metrics.mrr.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
-                        ${metrics.mrr.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.mrr.growth).toFixed(1)}% WoW
-                    </div>
-                    <div class="metric-subtitle">
-                        (This week: $${metrics.mrr.currentWeek.toLocaleString('en-US', {maximumFractionDigits: 0})} / Last week: $${metrics.mrr.lastWeek.toLocaleString('en-US', {maximumFractionDigits: 0})})
-                    </div>
-                </div>
                 <div class="metric-card" onclick="window.open('metrics/referrals.html', '_blank')" style="cursor: pointer">
                     <i class="fas fa-chart-line chart-icon"></i>
                     <div class="metric-title">Referrals</div>
@@ -743,10 +832,7 @@
                     <div class="metric-title">Monthly Paid Users</div>
                     <div class="metric-value">${metrics.monthlyPaidUsers.value.toLocaleString()}</div>
                     <div class="metric-growth ${metrics.monthlyPaidUsers.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
-                        ${metrics.monthlyPaidUsers.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.monthlyPaidUsers.growth).toFixed(1)}% WoW
-                    </div>
-                    <div class="metric-growth ${metrics.monthlyPaidUsers.momChange >= 0 ? 'growth-positive' : 'growth-negative'}">
-                        ${metrics.monthlyPaidUsers.momChange >= 0 ? '↑' : '↓'} ${Math.abs(metrics.monthlyPaidUsers.momChange).toFixed(1)}% MoM
+                        ${metrics.monthlyPaidUsers.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.monthlyPaidUsers.growth).toFixed(1)}% MoM
                     </div>
                     <div class="metric-subtitle">This Month: ${metrics.monthlyPaidUsers.thisMonth.toLocaleString()}</div>
                     <div class="metric-subtitle">Last Month: ${metrics.monthlyPaidUsers.lastMonth.toLocaleString()}</div>
@@ -1117,10 +1203,8 @@
                     return acc;
                 }, { monthly: {}, quarterly: {} });
 
-                // Debug log
                 console.log('Revenue by period:', revenueByPeriod);
 
-                // Convert to arrays and sort chronologically
                 const monthlyData = Object.entries(revenueByPeriod.monthly)
                     .sort((a, b) => new Date(a[0] + ' 1') - new Date(b[0] + ' 1'));
                 const quarterlyData = Object.entries(revenueByPeriod.quarterly)
@@ -1203,15 +1287,12 @@
                 };
 
                 const weeklyGrowthData = filteredData.reduce((acc, item) => {
-                    // For trials, use trial_start_at
                     const trialDate = item.trial_start_at ? new Date(parseInt(item.trial_start_at)) : null;
-                    // For paid users, use most_recent_purchase_at
                     const purchaseDate = item.most_recent_purchase_at ? new Date(parseInt(item.most_recent_purchase_at)) : null;
                     
                     const store = item.latest_store?.toLowerCase() || '';
                     const isPaid = parseFloat(item.total_spent) > 0;
 
-                    // Process trial users
                     if (trialDate) {
                         const weekKey = getWeekStart(trialDate);
 
@@ -1229,7 +1310,6 @@
                         }
                     }
 
-                    // Process paid users
                     if (purchaseDate && isPaid) {
                         const weekKey = getWeekStart(purchaseDate);
 
@@ -1250,7 +1330,6 @@
                     return acc;
                 }, {});
 
-                // Calculate total trials and paid for each week
                 const weeklyData = Object.entries(weeklyGrowthData)
                     .sort(([a], [b]) => new Date(a) - new Date(b))
                     .map(([week, data]) => {
@@ -1258,7 +1337,6 @@
                         const totalPaid = data.iOS.paid + data.Android.paid;
                         const conversionRate = totalTrials > 0 ? (totalPaid / totalTrials * 100).toFixed(1) : 0;
                         
-                        // Calculate total revenue for the week
                         const weekRevenue = filteredData
                             .filter(item => {
                                 const purchaseDate = item.most_recent_purchase_at ? new Date(parseInt(item.most_recent_purchase_at)) : null;
@@ -1271,13 +1349,12 @@
                         return [week, data, conversionRate, weekRevenue];
                     });
 
-                // Add conversion rate and revenue annotations
                 const annotations = weeklyData.map(([week, data, conversionRate, weekRevenue], index) => [
                     {
                         x: week,
                         y: 1.1 * Math.max(...weeklyData.map(([,data]) => 
                             data.iOS.trials + data.iOS.paid + data.Android.trials + data.Android.paid
-                        )), // Position above highest bar
+                        )),
                         text: `Conv: ${conversionRate}%`,
                         showarrow: false,
                         yshift: 0,
@@ -1290,7 +1367,7 @@
                         x: week,
                         y: 1.2 * Math.max(...weeklyData.map(([,data]) => 
                             data.iOS.trials + data.iOS.paid + data.Android.trials + data.Android.paid
-                        )), // Position even higher
+                        )),
                         text: `Rev: $${weekRevenue.toLocaleString('en-US', {maximumFractionDigits: 0})}`,
                         showarrow: false,
                         yshift: 0,
@@ -1301,13 +1378,12 @@
                     }
                 ]).flat();
 
-                // Create traces for the bar chart
                 const iOSTrialsTrace = {
                     x: weeklyData.map(([week]) => week),
                     y: weeklyData.map(([, data]) => data.iOS.trials),
                     type: 'bar',
                     name: 'iOS Trials',
-                    marker: { color: '#8E8E93' },  // iOS Light Gray
+                    marker: { color: '#8E8E93' },
                     stackgroup: 'ios'
                 };
 
@@ -1316,7 +1392,7 @@
                     y: weeklyData.map(([, data]) => data.iOS.paid),
                     type: 'bar',
                     name: 'iOS Paid',
-                    marker: { color: '#1D1D1F' },  // iOS Dark Gray/Black
+                    marker: { color: '#1D1D1F' },
                     stackgroup: 'ios'
                 };
 
@@ -1325,7 +1401,7 @@
                     y: weeklyData.map(([, data]) => data.Android.trials),
                     type: 'bar',
                     name: 'Android Trials',
-                    marker: { color: '#82B1FF' },  // Android Light Blue
+                    marker: { color: '#82B1FF' },
                     stackgroup: 'android'
                 };
 
@@ -1334,7 +1410,7 @@
                     y: weeklyData.map(([, data]) => data.Android.paid),
                     type: 'bar',
                     name: 'Android Paid',
-                    marker: { color: '#2962FF' },  // Android Dark Blue
+                    marker: { color: '#2962FF' },
                     stackgroup: 'android'
                 };
 
@@ -1359,8 +1435,8 @@
                         ))]
                     },
                     barmode: 'group',
-                    bargap: 0.3,        // Gap between week groups
-                    bargroupgap: 0.1,   // Gap between platform groups
+                    bargap: 0.3,
+                    bargroupgap: 0.1,
                     showlegend: true,
                     legend: {
                         orientation: 'h',
