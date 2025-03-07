@@ -60,11 +60,37 @@
     <div class="chart-container"><div id="gender_split"></div></div>
 
     <script>
-        async function loadUserProfiles() {
+        // Fetch data immediately when page loads
+        fetch('User Profile data.json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(profiles => {
+                console.log('Data loaded successfully:', profiles.length, 'profiles');
+                loadUserProfiles(profiles);  // Pass the data to the function
+            })
+            .catch(error => {
+                console.error('Error loading user profile data:', error);
+                document.body.innerHTML = `
+                    <div style="color: red; padding: 20px; text-align: center;">
+                        <h2>Error Loading Data</h2>
+                        <p>${error.message}</p>
+                        <a href="index.html" style="color: #f57f2b; text-decoration: none;">
+                            <i class="fas fa-arrow-left"></i> Return to Dashboard
+                        </a>
+                    </div>
+                `;
+            });
+
+        // Modified function to accept data as parameter
+        function loadUserProfiles(profiles) {
             try {
-                const response = await fetch('User Profile data.json');
-                const profiles = await response.json();
-                
+                const brandColor = '#f57f2b';
+                const brandColorLight = 'rgba(245, 127, 43, 0.7)';
+
                 // Helper function to count and sort occurrences
                 const getTopItems = (array, limit = 10) => {
                     const counts = {};
@@ -75,9 +101,6 @@
                         .sort((a, b) => b[1] - a[1])
                         .slice(0, limit);
                 };
-
-                const brandColor = '#f57f2b';
-                const brandColorLight = 'rgba(245, 127, 43, 0.7)';
 
                 // 1. Top Health Conditions
                 const conditions = profiles.flatMap(p => p.conditions || []);
@@ -337,9 +360,6 @@
                 console.error('Error loading user profile data:', error);
             }
         }
-
-        // Load data when page loads
-        document.addEventListener('DOMContentLoaded', loadUserProfiles);
     </script>
 </body>
 </html> 
