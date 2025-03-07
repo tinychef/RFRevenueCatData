@@ -334,11 +334,41 @@
                         const accountsGrowth = lastWeekAccounts > 0 ? 
                             ((currentWeekAccounts - lastWeekAccounts) / lastWeekAccounts) * 100 : 100;
 
+                        // Calculate growth helper function
+                        const calculateGrowth = (current, previous) => {
+                            return previous !== 0 ? ((current - previous) / previous) * 100 : 100;
+                        };
+
+                        // Calculate Month over Month data for Accounts Created
+                        const currentCalendarMonth = now.getMonth();
+                        const currentYear = now.getFullYear();
+                        
+                        const thisMonthAccounts = oneSignalData.filter(user => {
+                            const sessionDate = new Date(user.first_session);
+                            return sessionDate.getMonth() === currentCalendarMonth && 
+                                   sessionDate.getFullYear() === currentYear && 
+                                   user.tags && 
+                                   user.tags.account_created === "true";
+                        }).length;
+
+                        const lastMonthAccounts = oneSignalData.filter(user => {
+                            const sessionDate = new Date(user.first_session);
+                            const lastMonth = currentCalendarMonth === 0 ? 11 : currentCalendarMonth - 1;
+                            const lastMonthYear = currentCalendarMonth === 0 ? currentYear - 1 : currentYear;
+                            return sessionDate.getMonth() === lastMonth && 
+                                   sessionDate.getFullYear() === lastMonthYear && 
+                                   user.tags && 
+                                   user.tags.account_created === "true";
+                        }).length;
+
                         metrics.accountsCreated = {
                             value: accountCreatedData.length,
-                            growth: accountsGrowth,
-                            currentWeek: currentWeekAccounts,
-                            lastWeek: lastWeekAccounts
+                            growth: accountsGrowth,  // Keep original WoW growth
+                            currentWeek: currentWeekAccounts,  // Keep original weekly data
+                            lastWeek: lastWeekAccounts,  // Keep original weekly data
+                            momChange: calculateGrowth(thisMonthAccounts, lastMonthAccounts),
+                            thisMonth: thisMonthAccounts,
+                            lastMonth: lastMonthAccounts
                         };
                         
                         // Calculate Form Completed metrics
@@ -768,9 +798,11 @@
                     <div class="metric-growth ${metrics.accountsCreated.growth >= 0 ? 'growth-positive' : 'growth-negative'}">
                         ${metrics.accountsCreated.growth >= 0 ? '↑' : '↓'} ${Math.abs(metrics.accountsCreated.growth).toFixed(1)}% WoW
                     </div>
-                    <div class="metric-subtitle">
-                        (This week: ${metrics.accountsCreated.currentWeek} / Last week: ${metrics.accountsCreated.lastWeek})
+                    <div class="metric-growth ${metrics.accountsCreated.momChange >= 0 ? 'growth-positive' : 'growth-negative'}">
+                        ${metrics.accountsCreated.momChange >= 0 ? '↑' : '↓'} ${Math.abs(metrics.accountsCreated.momChange).toFixed(1)}% MoM
                     </div>
+                    <div class="metric-subtitle">This Month: ${metrics.accountsCreated.thisMonth}</div>
+                    <div class="metric-subtitle">Last Month: ${metrics.accountsCreated.lastMonth}</div>
                 </div>
                 <div class="metric-card" onclick="window.open('metrics/forms.html', '_blank')" style="cursor: pointer">
                     <i class="fas fa-chart-line chart-icon"></i>

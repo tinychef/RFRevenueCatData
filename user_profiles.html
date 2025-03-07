@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile Analytics - Ryan Fernando App</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --brand-color: #f57f2b;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+        }
+        h2 {
+            color: #f57f2b;
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            width: 100%;
+            max-width: 800px;
+            margin: auto;
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #f57f2b;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(245, 127, 43, 0.1);
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #f57f2b;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-link">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </a>
+    <h2>User Profile Analytics</h2>
+
+    <div class="chart-container"><div id="health_conditions"></div></div>
+    <div class="chart-container"><div id="current_goals"></div></div>
+    <div class="chart-container"><div id="age_groups"></div></div>
+    <div class="chart-container"><div id="allergies"></div></div>
+    <div class="chart-container"><div id="symptoms"></div></div>
+    <div class="chart-container"><div id="locations"></div></div>
+    <div class="chart-container"><div id="cuisines"></div></div>
+    <div class="chart-container"><div id="paid_age_groups"></div></div>
+    <div class="chart-container"><div id="paid_conditions"></div></div>
+    <div class="chart-container"><div id="paid_goals"></div></div>
+    <div class="chart-container"><div id="gender_split"></div></div>
+
+    <script>
+        async function loadUserProfiles() {
+            try {
+                const response = await fetch('User Profile data.json');
+                const profiles = await response.json();
+                
+                // Helper function to count and sort occurrences
+                const getTopItems = (array, limit = 10) => {
+                    const counts = {};
+                    array.forEach(item => {
+                        if (item) counts[item] = (counts[item] || 0) + 1;
+                    });
+                    return Object.entries(counts)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, limit);
+                };
+
+                const brandColor = '#f57f2b';
+                const brandColorLight = 'rgba(245, 127, 43, 0.7)';
+
+                // 1. Top Health Conditions
+                const conditions = profiles.flatMap(p => p.conditions || []);
+                const topConditions = getTopItems(conditions, 10);
+                Plotly.newPlot('health_conditions', [{
+                    x: topConditions.map(([condition]) => condition),
+                    y: topConditions.map(([, count]) => count),
+                    type: 'bar',
+                    marker: { color: brandColor }
+                }], {
+                    title: 'Top 10 Health Conditions',
+                    xaxis: { title: 'Condition' },
+                    yaxis: { title: 'Number of Users' }
+                });
+
+                // 2. Top Current Goals
+                const goals = profiles.map(p => p.currentGoal).filter(Boolean);
+                const topGoals = getTopItems(goals, 5);
+                Plotly.newPlot('current_goals', [{
+                    labels: topGoals.map(([goal]) => goal),
+                    values: topGoals.map(([, count]) => count),
+                    type: 'pie',
+                    marker: { colors: [brandColor, brandColorLight] }
+                }], {
+                    title: 'Top 5 Current Goals'
+                });
+
+                // 3. Age Groups
+                const ageGroups = {
+                    "18-25": 0, "26-35": 0, "36-45": 0,
+                    "46-55": 0, "56-65": 0, "65+": 0
+                };
+                profiles.forEach(p => {
+                    if (p.age) {
+                        if (p.age <= 25) ageGroups["18-25"]++;
+                        else if (p.age <= 35) ageGroups["26-35"]++;
+                        else if (p.age <= 45) ageGroups["36-45"]++;
+                        else if (p.age <= 55) ageGroups["46-55"]++;
+                        else if (p.age <= 65) ageGroups["56-65"]++;
+                        else ageGroups["65+"]++;
+                    }
+                });
+                Plotly.newPlot('age_groups', [{
+                    x: Object.keys(ageGroups),
+                    y: Object.values(ageGroups),
+                    type: 'bar',
+                    marker: { color: brandColor }
+                }], {
+                    title: 'Age Group Distribution',
+                    xaxis: { title: 'Age Group' },
+                    yaxis: { title: 'Number of Users' }
+                });
+
+                // 4. Top Allergies
+                const allergies = profiles.flatMap(p => p.allergies || []);
+                const topAllergies = getTopItems(allergies, 10);
+                Plotly.newPlot('allergies', [{
+                    x: topAllergies.map(([allergy]) => allergy),
+                    y: topAllergies.map(([, count]) => count),
+                    type: 'bar',
+                    marker: { color: brandColor }
+                }], {
+                    title: 'Top 10 Allergies',
+                    xaxis: { title: 'Allergy' },
+                    yaxis: { title: 'Number of Users' }
+                });
+
+                // 5. Top Symptoms
+                const symptoms = profiles.flatMap(p => p.symptoms || []);
+                const topSymptoms = getTopItems(symptoms, 5);
+                Plotly.newPlot('symptoms', [{
+                    labels: topSymptoms.map(([symptom]) => symptom),
+                    values: topSymptoms.map(([, count]) => count),
+                    type: 'pie',
+                    marker: { colors: [brandColor, brandColorLight] }
+                }], {
+                    title: 'Top 5 Symptoms'
+                });
+
+                // 6. Top Locations
+                const locations = profiles.map(p => p.location).filter(Boolean);
+                const topLocations = getTopItems(locations, 10);
+                Plotly.newPlot('locations', [{
+                    x: topLocations.map(([location]) => location),
+                    y: topLocations.map(([, count]) => count),
+                    type: 'bar',
+                    marker: { color: brandColor }
+                }], {
+                    title: 'Top 10 Locations',
+                    xaxis: { title: 'Location', tickangle: 45 },
+                    yaxis: { title: 'Number of Users' }
+                });
+
+                // 7. Top Home Cuisines
+                const cuisines = profiles.map(p => p.homeCuisine).filter(Boolean);
+                const topCuisines = getTopItems(cuisines, 10);
+                
+                // Create a simple table for cuisines
+                const cuisineTable = document.createElement('table');
+                cuisineTable.style.width = '100%';
+                cuisineTable.style.borderCollapse = 'collapse';
+                cuisineTable.style.marginTop = '20px';
+                cuisineTable.style.backgroundColor = 'white';
+                
+                // Add header
+                const header = cuisineTable.createTHead();
+                const headerRow = header.insertRow();
+                ['Rank', 'Cuisine', 'Count', 'Percentage'].forEach(text => {
+                    const th = document.createElement('th');
+                    th.textContent = text;
+                    th.style.padding = '12px';
+                    th.style.backgroundColor = '#f57f2b';
+                    th.style.color = 'white';
+                    th.style.textAlign = 'left';
+                    headerRow.appendChild(th);
+                });
+
+                // Add data rows
+                const tbody = cuisineTable.createTBody();
+                const totalCuisines = cuisines.length;
+                topCuisines.forEach(([cuisine, count], index) => {
+                    const row = tbody.insertRow();
+                    row.style.backgroundColor = index % 2 === 0 ? '#fff' : '#f9f9f9';
+                    const cells = [
+                        index + 1,
+                        cuisine,
+                        count,
+                        ((count / totalCuisines) * 100).toFixed(1) + '%'
+                    ];
+                    cells.forEach((text, cellIndex) => {
+                        const cell = row.insertCell();
+                        cell.textContent = text;
+                        cell.style.padding = '12px';
+                        cell.style.borderBottom = '1px solid #ddd';
+                    });
+                });
+
+                // Clear and append table
+                document.getElementById('cuisines').innerHTML = '<h3>Top 10 Home Cuisines</h3>';
+                document.getElementById('cuisines').appendChild(cuisineTable);
+
+                // Paid Users Analysis
+                const paidUsers = profiles.filter(p => p.membershipType === "premium");
+
+                // 8. Age Groups of Paid Users
+                const paidAgeGroups = {
+                    "18-25": 0, "26-35": 0, "36-45": 0,
+                    "46-55": 0, "56-65": 0, "65+": 0
+                };
+                paidUsers.forEach(p => {
+                    if (p.age) {
+                        if (p.age <= 25) paidAgeGroups["18-25"]++;
+                        else if (p.age <= 35) paidAgeGroups["26-35"]++;
+                        else if (p.age <= 45) paidAgeGroups["36-45"]++;
+                        else if (p.age <= 55) paidAgeGroups["46-55"]++;
+                        else if (p.age <= 65) paidAgeGroups["56-65"]++;
+                        else paidAgeGroups["65+"]++;
+                    }
+                });
+                Plotly.newPlot('paid_age_groups', [{
+                    x: Object.keys(paidAgeGroups),
+                    y: Object.values(paidAgeGroups),
+                    type: 'bar',
+                    marker: { color: brandColor }
+                }], {
+                    title: 'Age Groups of Paid Users',
+                    xaxis: { title: 'Age Group' },
+                    yaxis: { title: 'Number of Users' }
+                });
+
+                // 9. Top Conditions of Paid Users
+                const paidConditions = paidUsers.flatMap(p => p.conditions || []);
+                const topPaidConditions = getTopItems(paidConditions, 10);
+                Plotly.newPlot('paid_conditions', [{
+                    x: topPaidConditions.map(([condition]) => condition),
+                    y: topPaidConditions.map(([, count]) => count),
+                    type: 'bar',
+                    marker: { color: brandColor }
+                }], {
+                    title: 'Top 10 Conditions of Paid Users',
+                    xaxis: { title: 'Condition' },
+                    yaxis: { title: 'Number of Users' }
+                });
+
+                // 10. Top Goals of Paid Users
+                const paidGoals = paidUsers.map(p => p.currentGoal).filter(Boolean);
+                const topPaidGoals = getTopItems(paidGoals, 10);
+                Plotly.newPlot('paid_goals', [{
+                    labels: topPaidGoals.map(([goal]) => goal),
+                    values: topPaidGoals.map(([, count]) => count),
+                    type: 'pie',
+                    marker: { colors: [brandColor, brandColorLight] }
+                }], {
+                    title: 'Top 10 Goals of Paid Users'
+                });
+
+                // 11 & 12. Gender Split - Three separate cards
+                const premiumUsers = profiles.filter(p => p.membershipType === "premium");
+                const freeUsers = profiles.filter(p => p.membershipType === "free");
+                const dietPlanUsers = profiles.filter(p => p.membershipType === "DIET_PLAN_1_WEEK");
+
+                // Function to create gender distribution card
+                const createGenderCard = (users, title) => {
+                    const maleCount = users.filter(p => p.gender?.toLowerCase() === "male").length;
+                    const femaleCount = users.filter(p => p.gender?.toLowerCase() === "female").length;
+                    const total = maleCount + femaleCount;
+                    const malePercentage = ((maleCount / total) * 100).toFixed(1);
+                    const femalePercentage = ((femaleCount / total) * 100).toFixed(1);
+
+                    const card = document.createElement('div');
+                    card.className = 'chart-container';
+                    card.style.flex = '1';
+                    card.style.margin = '10px';
+                    card.style.minWidth = '300px';
+                    card.style.backgroundColor = 'white';
+                    card.style.borderRadius = '8px';
+                    card.style.padding = '20px';
+
+                    card.innerHTML = `
+                        <h3 style="color: #333; margin-bottom: 15px; text-align: center">${title}</h3>
+                        <p style="text-align: center; color: #666; margin-bottom: 20px">Total: ${total.toLocaleString()} users</p>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px">
+                            <div style="text-align: center; flex: 1">
+                                <div style="font-size: 24px; color: ${brandColor}; font-weight: bold">${maleCount.toLocaleString()}</div>
+                                <div style="color: #666">Male</div>
+                                <div style="font-size: 18px; color: ${brandColor}">${malePercentage}%</div>
+                            </div>
+                            <div style="text-align: center; flex: 1">
+                                <div style="font-size: 24px; color: ${brandColorLight}; font-weight: bold">${femaleCount.toLocaleString()}</div>
+                                <div style="color: #666">Female</div>
+                                <div style="font-size: 18px; color: ${brandColorLight}">${femalePercentage}%</div>
+                            </div>
+                        </div>
+                        <div style="background: #f5f5f5; height: 20px; border-radius: 10px; overflow: hidden">
+                            <div style="width: ${malePercentage}%; height: 100%; background: ${brandColor}; float: left"></div>
+                            <div style="width: ${femalePercentage}%; height: 100%; background: ${brandColorLight}; float: left"></div>
+                        </div>
+                    `;
+
+                    return card;
+                };
+
+                // Create container for the cards
+                const genderContainer = document.getElementById('gender_split');
+                genderContainer.style.display = 'flex';
+                genderContainer.style.flexWrap = 'wrap';
+                genderContainer.style.justifyContent = 'space-between';
+                genderContainer.style.gap = '20px';
+                genderContainer.innerHTML = '';
+
+                // Add the three cards
+                genderContainer.appendChild(createGenderCard(premiumUsers, 'Premium Users Gender Distribution'));
+                genderContainer.appendChild(createGenderCard(freeUsers, 'Free Users Gender Distribution'));
+                genderContainer.appendChild(createGenderCard(dietPlanUsers, 'Diet Plan Users Gender Distribution'));
+
+            } catch (error) {
+                console.error('Error loading user profile data:', error);
+            }
+        }
+
+        // Load data when page loads
+        document.addEventListener('DOMContentLoaded', loadUserProfiles);
+    </script>
+</body>
+</html> 
